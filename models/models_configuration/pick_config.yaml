@@ -1,0 +1,6 @@
+checkpoint: path/to/checkpoint.pth
+bt: path/to/bt_folder
+impt: path/to/impt_folder
+bs: 16
+output: output_folder
+local_rank: 0

@@ -1,0 +1,8 @@
+checkpoint: /mnt/data_drive/CSU_PhD/research/software/DocumentLabeler_v2/models/pick/saved/PICK_default/models/SROIE_test_0521_015255/model_best.pth
+bt: /mnt/data_drive/CSU_PhD/research/software/DocumentLabeler/applications/data/SROIE_PICK/boxes_and_transcripts_org
+impt: /mnt/data_drive/CSU_PhD/research/software/DocumentLabeler/applications/data/SROIE_PICK/images
+bs: 16
+output: /mnt/data_drive/CSU_PhD/research/software/DocumentLabeler/applications/data/SROIE_PICK/output
+local_rank: 0
+gpu: 7                   # Number of GPUs in multi gpu system
+num_workers: 24          # Number of CPU cores

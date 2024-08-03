@@ -1,0 +1,9 @@
+DocumentLabeler/8.tar_1501.04311.gz_pippori_27.jpg	1
+DocumentLabeler/7.tar_1601.03015.gz_crs_19.jpg	1
+DocumentLabeler/11.tar_1701.04715.gz_paper_1.jpg	1
+DocumentLabeler/13.tar_1801.05376.gz_main_26.jpg	1
+DocumentLabeler/12.tar_1701.05337.gz_ms_14.jpg	1
+DocumentLabeler/20.tar_1801.07927.gz_Manuscript_V5_0.jpg	1
+DocumentLabeler/7.tar_1801.02983.gz_Article_7.jpg	1
+DocumentLabeler/11.tar_1401.6921.gz_rad-lep-II-2_13.jpg	1
+DocumentLabeler/2.tar_1801.00617.gz_idempotents_arxiv_4.jpg	1
