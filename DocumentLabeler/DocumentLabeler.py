@@ -105,6 +105,8 @@ from libs.keyDialog import KeyDialog
 from libs.consoleTab import ConsoleTab
 from libs.progress_bar import ExportProgress
 
+os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
+
 __appname__ = 'Document_Labeler'
 
 LABEL_COLORMAP = label_colormap()
@@ -189,13 +191,17 @@ class MainWindow(QMainWindow):
         #           --output_path,
         #           --config_file)   
         self.inference = Inference(self.model,
-                                   checkpoint_path='/mnt/data_drive/CSU_PhD/research/software/DocumentEngineering/DocumentLabeler_FinalDev/models/pick/saved/PICK-default/models/SROIE_test_0521_015255/model_best.pth',
-                                   bt_path='/mnt/data/Data-Document/GeneralDocument/SROIE_PICK/boxes_and_transcripts',
-                                   impt_path='/mnt/data/Data-Document/GeneralDocument/SROIE_PICK/images',
+				   checkpoint_path='./',
+				   bt_path='./',
+				   impt_path='./',
+                                   #checkpoint_path='/mnt/data_drive/CSU_PhD/research/software/DocumentEngineering/DocumentLabeler_FinalDev/models/pick/saved/PICK-default/models/SROIE_test_0521_015255/model_best.pth',
+                                   #bt_path='/mnt/data/Data-Document/GeneralDocument/SROIE_PICK/boxes_and_transcripts',
+                                   #impt_path='/mnt/data/Data-Document/GeneralDocument/SROIE_PICK/images',
                                    batch_size=2,
-                                   output_path='/mnt/data_drive/CSU_PhD/research/software/DocumentEngineering/DocumentLabeler_FinalDev/output',
-                                   config_file='/mnt/data_drive/CSU_PhD/research/software/DocumentEngineering/DocumentLabeler_FinalDev/models/configs/pick/pick_config.yaml')
-
+                                   #output_path='/mnt/data_drive/CSU_PhD/research/software/DocumentEngineering/DocumentLabeler_FinalDev/output',
+                                   #config_file='/mnt/data_drive/CSU_PhD/research/software/DocumentEngineering/DocumentLabeler_FinalDev/models/configs/pick/pick_config.yaml')
+				   output_path='/home/ubuntu/csu_phd/research/software/ACM_DocEng2024/DocumentLabeler/output',
+				   config_file='/home/ubuntu/csu_phd/research/software/ACM_DocEng2024/DocumentLabeler/models/configs/pick/pick_config.yaml')
         # self.ocr = PaddleOCR(use_pdserving=False,
         #                      use_angle_cls=True,
         #                      det=True,
