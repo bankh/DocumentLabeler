@@ -1,8 +1,0 @@
-checkpoint: /home/ubuntu/csu_phd/research/software/ACM_DocEng2024/DocumentLabeler_/models/pick/saved/models/mcmaster_200_0807_051557/checkpoint-epoch100.pth
-bt: /home/ubuntu/csu_phd/research/software/ACM_DocEng2024/DocumentLabeler_/DocumentLabeler/data_samples/CatalogBank/pick_no_label/boxes_and_transcripts
-impt: /home/ubuntu/csu_phd/research/software/ACM_DocEng2024/DocumentLabeler_/DocumentLabeler/data_samples/CatalogBank/pick_no_label/images
-bs: 4
-output: /home/ubuntu/csu_phd/research/software/ACM_DocEng2024/DocumentLabeler_/output
-local_rank: 0
-num_worker: 4
-use_cpu: True
