@@ -1,0 +1,1 @@
+Batch output test.
