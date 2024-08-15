@@ -13,7 +13,7 @@
     <img src="https://img.shields.io/github/contributors-anon/bankh/DocumentLabeler" alt="GitHub contributors"/>
   </a>
 
-[Folder Structure](#folder-structure-of-the-repository)📂 | [Installation and Setup](#installation-and-setup-of-the-documentlabeler)⚙️ | [Usage of DocumentLabeler](#usage-of-documentlabeler)🏃| [Tools](#tools)🛠️ | [References](#references-and-other-software-tools)📖 | [Cite](#cite)📜 | [Contact](#contact)📫
+[Folder Structure](#folder-structure-of-the-repository)📂 | [Installation and Setup](#installation-and-setup-of-the-documentlabeler)⚙️ | [Usage of DocumentLabeler](#usage-of-documentlabeler)🏃| [Tools](#tools)🛠️ | [Cite](#cite)📜 | [Contact](#contact)📫 | [References](#references-and-other-software-tools)📖 
 </div>
 
 __Accompanying Semi-Automatic Annotation Tool to the Paper__  
@@ -174,7 +174,7 @@ Once the installation is completed, type `source activate ~/.bashrc`, and you sh
   $ pip install requirements_dl.txt
   ```
 __Notes:__  
-__[a]__ To use GPU inference with PICK (or your own model), make sure to install the appropriate versions of PyTorch with the target GPU while taking into account its [compute capabilities (e.g., SM_XX)](https://developer.nvidia.com/cuda-gpus#compute). To check the compute capability of the system we can use `nvidia-smi --query-gpu=compute_cap --format=csv,noheader` in the terminal window. For example, we can check our GPU via `nvidia-smi -q` and will see for HP Victus 16 as:  
+__[a]__ To use GPU inference with PICK[^Fn1] (or your own model), make sure to install the appropriate versions of PyTorch with the target GPU while taking into account its [compute capabilities (e.g., SM_XX)](https://developer.nvidia.com/cuda-gpus#compute). To check the compute capability of the system we can use `nvidia-smi --query-gpu=compute_cap --format=csv,noheader` in the terminal window. For example, we can check our GPU via `nvidia-smi -q` and will see for HP Victus 16 as:  
 ```
 ==============NVSMI LOG==============
 
@@ -398,22 +398,6 @@ The details are provided below, also can be seen in CatalogBank readMe markdown 
 2- To convert pre-processed data to DocumentLabeler format (available in UI `File > Import`), use `./tools/DocumentLabeler_Notebooks/2_CatalogBank_Convert_Preprocessed_DocumentLabeler (Import).ipynb`.  
 3- Convert DocumentLabeler format to a target (available in UI File > Export), use `./tools/DocumentLabeler_Notebooks/3_CatalogBank_Convert_DocumentLabeler_Target (Export).ipynb`.
 
-### __References and Other Software Tools__ <a name="references-and-other-software-tools"></a>
-<table>
-  <tr align="center">
-    <td><img src="./repo_assets/labelMe.jpg" alt="LabelMe" width="300" height="200" /></td>
-    <td><img src="./repo_assets/labelImg.jpg" alt="LabelImg" width="300" height="200" /></td>
-    <td><img src="./repo_assets/labelStudio.png" alt="Label Studio" width="300" height="200" /></td>
-    <td><img src="./repo_assets/ppocrlabel.png" alt="PPOCRLabel" width="300" height="200" /></td>
-  </tr>
-  <tr align="center">
-    <td><a href="https://github.com/CSAILVision/LabelMeAnnotationTool"><strong>CSAIL LabelMe, (2008) </strong></a></td>
-    <td><a href="https://github.com/tzutalin/labelImg"><strong>Tzutalin's LabelImg, (2015)</strong></a></td>
-    <td><a href="https://github.com/heartexlabs/label-studio"><strong>Label Studio, (2019)</strong></a></td>
-    <td><a href="https://github.com/Mushroomcat9998/PaddleOCR/blob/main/PPOCRLabel/README.md"><strong>PPOCRLabel, (2020)</strong></a></td>
-  </tr>
-</table>
-
 ### __Cite__ <a name="cite"></a>
 Please cite the respective paper if you use this tool in your work:
 
@@ -434,3 +418,21 @@ __Part I:__ [`CatalogBank: A Structured and Interoperable Catalog Dataset with a
 ```
 ### __Contact__ <a name="contact"></a>
 Please contact with sinan.bank@colostate.edu for any questions and problems that you have regarding this repository.
+
+### __References and Other Software Tools__ <a name="references-and-other-software-tools"></a>
+<table>
+  <tr align="center">
+    <td><img src="./repo_assets/labelMe.jpg" alt="LabelMe" width="300" height="200" /></td>
+    <td><img src="./repo_assets/labelImg.jpg" alt="LabelImg" width="300" height="200" /></td>
+    <td><img src="./repo_assets/labelStudio.png" alt="Label Studio" width="300" height="200" /></td>
+    <td><img src="./repo_assets/ppocrlabel.png" alt="PPOCRLabel" width="300" height="200" /></td>
+  </tr>
+  <tr align="center">
+    <td><a href="https://github.com/CSAILVision/LabelMeAnnotationTool"><strong>CSAIL LabelMe, (2008) </strong></a></td>
+    <td><a href="https://github.com/tzutalin/labelImg"><strong>Tzutalin's LabelImg, (2015)</strong></a></td>
+    <td><a href="https://github.com/heartexlabs/label-studio"><strong>Label Studio, (2019)</strong></a></td>
+    <td><a href="https://github.com/Mushroomcat9998/PaddleOCR/blob/main/PPOCRLabel/README.md"><strong>PPOCRLabel, (2020)</strong></a></td>
+  </tr>
+</table>
+
+[^Fn1]: Yu, Wenwen, et al. "PICK: processing key information extraction from documents using improved graph learning-convolutional networks." 2020 25th International Conference on Pattern Recognition (ICPR). IEEE, 2021.
