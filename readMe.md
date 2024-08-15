@@ -313,8 +313,8 @@ __To Merge__, please make sure the created box or polygon overlays the target ob
       Then, we can either use a YAML file from 
       <a href="./models/model_configuration/pick_config.yaml">./models/model_configuration/pick_config.yaml</a> 
       or enter the individual path settings.<br>  
-      Depending on the hardware configuration, the user can select <code>Multi-GPU</code> 
-      or <code>CPU</code> based inference for a single page, as shown in the image.
+      Depending on the hardware configuration, the user can select <code>CPU</code>, <code>GPU</code>, or <code>Multi-GPU</code> 
+      -based inference for a single page, as shown in the image.
     </td>
   </tr>
 </table>
