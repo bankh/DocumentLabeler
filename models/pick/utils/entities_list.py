@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # @Author: Wenwen Yu
 # @Created Time: 7/8/2020 9:34 PM
-
+# @Modified by: Sinan Bank
 
 # SROIE
 # Entities_list = [
@@ -45,22 +45,3 @@ Entities_list = [
     "TableTitle",
     "SubCategories"
 ]
-
-# Catalog
-# Entities_list = [
-#     "Unit",
-#     "Category",
-#     "SubCategory",
-#     "Subsubcategory",
-#     "TableRow",
-#     "Image",
-#     "PageNumber",
-#     "None",
-#     "Other",
-#     "Caption",
-#     "Paragraph",
-#     "Sub-Category",
-#     "Sub-SubCategory",
-#     "TableCol",
-#     "Other"
-# ]

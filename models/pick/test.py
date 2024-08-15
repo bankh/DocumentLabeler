@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # @Author: Wenwen Yu
 # @Created Time: 7/13/2020 10:26 PM
+
 import argparse
 import torch
 from tqdm import tqdm
@@ -9,11 +10,12 @@ from pathlib import Path
 from torch.utils.data.dataloader import DataLoader
 from allennlp.data.dataset_readers.dataset_utils.span_utils import bio_tags_to_spans
 
-# from parse_config import ConfigParser
+from parse_config import ConfigParser
 import model.pick as pick_arch_module
 from data_utils.pick_dataset import PICKDataset
 from data_utils.pick_dataset import BatchCollateFn
 from utils.util import iob_index_to_str, text_index_to_str
+
 
 def main(args):
     device = torch.device(f'cuda:{args.gpu}' if args.gpu != -1 else 'cpu')
@@ -36,11 +38,8 @@ def main(args):
                                resized_image_size=(480, 960),
                                ignore_error=False,
                                training=False)
-    test_data_loader = DataLoader(test_dataset, 
-                                  batch_size=args.bs, 
-                                  shuffle=False,
-                                  num_workers=2, 
-                                  collate_fn=BatchCollateFn(training=False))
+    test_data_loader = DataLoader(test_dataset, batch_size=args.bs, shuffle=False,
+                                  num_workers=2, collate_fn=BatchCollateFn(training=False))
 
     # setup output path
     output_path = Path(args.output_folder)
@@ -73,9 +72,7 @@ def main(args):
             # union text as a sequence and convert index to string
             decoded_texts_list = text_index_to_str(text_segments, mask)
 
-            for decoded_tags, decoded_texts, image_index in zip(decoded_tags_list, 
-                                                                decoded_texts_list, 
-                                                                image_indexs):
+            for decoded_tags, decoded_texts, image_index in zip(decoded_tags_list, decoded_texts_list, image_indexs):
                 # List[ Tuple[str, Tuple[int, int]] ]
                 spans = bio_tags_to_spans(decoded_tags, [])
                 spans = sorted(spans, key=lambda x: x[1][0])
@@ -90,6 +87,7 @@ def main(args):
                 with result_file.open(mode='w') as f:
                     for item in entities:
                         f.write('{}\t{}\n'.format(item['entity_name'], item['text']))
+
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser(description='PyTorch PICK Testing')

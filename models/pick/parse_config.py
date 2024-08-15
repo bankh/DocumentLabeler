@@ -84,7 +84,7 @@ class ConfigParser:
         if args.config and resume:
             # update new config for fine-tuning
             config.update(read_json(args.config))
-
+        
         # parse custom cli options into dictionary
         modification = {opt.target: getattr(args, _get_opt_name(opt.flags)) for opt in options}
         return cls(config, resume, modification, config['run_id'])
@@ -128,6 +128,9 @@ class ConfigParser:
         self.config[key] = value
 
     def get_logger(self, name, verbosity=2):
+        if not self.debug_mode:
+            return logging.getLogger('disabled')
+        
         msg_verbosity = 'verbosity option {} is invalid. Valid options are {}.'.format(verbosity,
                                                                                        self.log_levels.keys())
         assert verbosity in self.log_levels, msg_verbosity

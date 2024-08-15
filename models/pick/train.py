@@ -28,6 +28,7 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 np.random.seed(SEED)
 
+
 def main(config: ConfigParser, local_master: bool, logger=None):
     # setup dataset and data_loader instances
     train_dataset = config.init_obj('train_dataset', pick_dataset_module)
@@ -40,27 +41,31 @@ def main(config: ConfigParser, local_master: bool, logger=None):
                                         sampler=train_sampler,
                                         shuffle=is_shuffle,
                                         collate_fn=BatchCollateFn())
+
     val_dataset = config.init_obj('validation_dataset', pick_dataset_module)
     val_data_loader = config.init_obj('val_data_loader', torch.utils.data.dataloader,
                                       dataset=val_dataset,
                                       collate_fn=BatchCollateFn())
     logger.info(f'Dataloader instances created. Train datasets: {len(train_dataset)} samples '
                 f'Validation datasets: {len(val_dataset)} samples.') if local_master else None
+
     # build model architecture
     pick_model = config.init_obj('model_arch', pick_arch_module)
     logger.info(f'Model created, trainable parameters: {pick_model.model_parameters()}.') if local_master else None
+
     # build optimizer, learning rate scheduler.
     optimizer = config.init_obj('optimizer', torch.optim, pick_model.parameters())
     lr_scheduler = config.init_obj('lr_scheduler', torch.optim.lr_scheduler, optimizer)
     logger.info('Optimizer and lr_scheduler created.') if local_master else None
+
     # print training related information
     logger.info('Max_epochs: {} Log_per_step: {} Validation_per_step: {}.'.
                 format(config['trainer']['epochs'],
                        config['trainer']['log_step_interval'],
                        config['trainer']['val_step_interval'])) if local_master else None
+
     logger.info('Training start...') if local_master else None
-    trainer = Trainer(pick_model, 
-                      optimizer,
+    trainer = Trainer(pick_model, optimizer,
                       config=config,
                       data_loader=train_data_loader,
                       valid_data_loader=val_data_loader,
@@ -69,26 +74,11 @@ def main(config: ConfigParser, local_master: bool, logger=None):
     trainer.train()
     logger.info('Training end...') if local_master else None
 
+
 def entry_point(config: ConfigParser):
     '''
     entry-point function for a single worker, distributed training
     '''
-    # os.environ["NCCL_DEBUG"] = "INFO"
-    # os.environ['NCCL_DEBUG_SUBSYS'] = 'COLL'
-    ##os.environ["NCCL_P2P_LEVEL"]="PIX"
-    ##os.environ["NCCL_NET_PLUGIN"]="none"
-    ##os.environ["NCCL_ALGO"]="Ring"
-    ##os.environ["HSA_FORCE_FINE_GRAIN_PCIE"]="1"
-    # os.environ["NCCL_P2P_DISABLE"]= "SM"
-    # os.environ["NCCL_SHM_DISABLE"]= "1"
-    # os.environ["NCCL_NVB_DISABLE"]= "1"
-    # os.environ["NCCL_IB_DISABLE"] = "1"
-    ##os.environ["TORCH_DISTRIBUTED_DEBUG"]="DETAIL"
-    # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4,5"
-    # os.environ["LOCAL_RANK"] = "0"
-    # os.environ["RANK"] = "0"
-    # os.environ["WORLD_SIZE"] = "6"
-    ##os.environ["TUNE_DISABLE_AUTO_CALLBACK_SYNCER"] = "1"
 
     local_world_size = config['local_world_size']
 
@@ -138,27 +128,18 @@ def entry_point(config: ConfigParser):
     # tear down the process group
     dist.destroy_process_group()
 
+
 if __name__ == '__main__':
     args = argparse.ArgumentParser(description='PyTorch PICK Distributed Training')
-    args.add_argument('-c', 
-                      '--config', 
-                      default=None, 
-                      type=str,
+    args.add_argument('-c', '--config', default=None, type=str,
                       help='config file path (default: None)')
-    args.add_argument('-r', 
-                      '--resume', 
-                      default=None, 
-                      type=str,
+    args.add_argument('-r', '--resume', default=None, type=str,
                       help='path to latest checkpoint (default: None)')
-    args.add_argument('-d', 
-                      '--device', 
-                      default=None, 
-                      type=str,
+    args.add_argument('-d', '--device', default=None, type=str,
                       help='indices of GPUs to be available (default: all)')
 
     # custom cli options to modify configuration from default values given in json file.
-    CustomArgs = collections.namedtuple('CustomArgs', 
-                                        'flags default type target help')  # CustomArgs.flags, CustomArgs.default
+    CustomArgs = collections.namedtuple('CustomArgs', 'flags default type target help')  # CustomArgs.flags, CustomArgs.default
     options = [
         # CustomArgs(['--lr', '--learning_rate'], default=0.0001, type=float, target='optimizer;args;lr',
         #            help='learning rate (default: 0.0001)'),
@@ -174,6 +155,7 @@ if __name__ == '__main__':
         CustomArgs(['--local_rank'], default=0, type=int, target='local_rank',
                    help='this is automatically passed in via torch.distributed.launch.py, '
                         'process will be assigned a local rank ID in [0, local_world_size-1]. (default: 0)')
+
     ]
     config = ConfigParser.from_args(args, options)
     # The main entry point is called directly without using subprocess, call by torch.distributed.launch.py

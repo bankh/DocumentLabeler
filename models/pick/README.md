@@ -18,6 +18,7 @@ Learning-Convolutional Networks"](https://arxiv.org/abs/2004.07464) (ICPR 2020).
 our original implementation.
 
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
+
 <!-- code_chunk_output -->
 
 * Contents
@@ -65,54 +66,7 @@ pip install -r requirements.txt
 ```
 
 ## Usage
-### Using Cloud for Running PICK  
-Different cloud-based solutions can be used to train PICK --especially for the cases where the document under interest has more than 500 
-tokens.  
-- Install and setup virtual environment by using conda (Miniconda).  
-```
-$ curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-$ chmod +x Miniconda3-latest-Linux-x86_64.sh
-$ bash Miniconda3-latest-Linux-x86_64.sh
-$ conda create -n pytorch180 python=3.8.0
-$ conda activate pytorch180
-```
-- Clone the PICK repository.
-```
-$ git clone https://github.com/wenwenyu/PICK-pytorch.git
-``````
-Install required libraries. The installation is CUDA 12 and we have A100 GPU. It is supposedly a sm70+ device. Therefore cu111+ installation of torch (PyTorch 1.7) is required. Newer cards will be problematic to run with the default requirements of the PICK repository.
-```
-$ python -m pip install torch==1.8.0+cu111 torchvision==0.9.0 torchtext==0.9.0 -f https://download.pytorch.org/whl/cu111/torch_stable.html
-$ pip install allennlp==2.2.0
-$ pip install opencv_python_headless
-$ pip install pandas
-$ pip install packaging==20.0
-$ pip install tabulate
-```
-We need to fix some  on PICK_pytorch
-- decoder.py -> length.to('cpu')
-- graph.py -> It needs cleaning of the memory at forward methods.
-Full length documents requires about 50GB of GPU memory with the standard configuration and batch size of 1.
-- entities.py -> Add the following for CatalogBank
-# Catalog
-Entities_list = [
-    "Image",
-    "Caption",
-    "Title",
-    "Description",
-    "None",
-    "SubsubCategories",
-    "List",
-    "SubTitle",
-    "PageNumber",
-    "Footer",
-    "SubsubTitle",
-    "Categories",
-    "Table",
-    "TableTitle",
-    "SubCategories"
-]
-```
+
 ### Distributed training with config files
 Modify the configurations in `config.json` and `dist_train.sh` files, then run:
 ```bash
@@ -132,7 +86,6 @@ CUDA_VISIBLE_DEVICES=1,2,3,4 python -m torch.distributed.launch --nnodes=1 --nod
 --master_addr=127.0.0.1 --master_port=5555 \
 train.py -c config.json --local_world_size 4
 ```
-
 Similarly, it can be launched with a single process that spans all 4 GPUs (if node has 4 available GPUs) 
 using (don't recommend):
 ```bash
@@ -183,6 +136,7 @@ You can test from a previously saved checkpoint by:
   ```
   
 ## Customization
+
 ### Training custom datasets
 You can train your own datasets following the steps outlined below.
 1. Prepare the correct format of files as provided in `data` folder.
@@ -191,7 +145,7 @@ You can train your own datasets following the steps outlined below.
 `images_folder`, `boxes_and_transcripts_folder`, `entities_folder`, `iob_tagging_type` and `resized_image_size`. 
 3. Modify `Entities_list` in `utils/entities_list.py` file according to the entity type of your dataset.
 4. Modify `keys.txt` in `utils/keys.txt` file if needed according to the vocabulary of your dataset.
-5. Modify `MAX_BOXES_NUM` and `MAX_TRANSCRIPT_LEN` in `data_utils/documents.py` file if needed.
+5. Modify `MAX_BOXES_NUM` and `MAX_TRANSCRIPT_LEN` in `data_tuils/documents.py` file if needed.
 
 **Note**: The self-build datasets our paper used cannot be shared for patient privacy and proprietary issues.
 
@@ -203,6 +157,7 @@ You can specify the name of the training session in `config.json` files:
   ```
 
 The checkpoints will be saved in `save_dir/name/run_id_timestamp/checkpoint_epoch_n`, with timestamp in mmdd_HHMMSS format.
+
 A copy of `config.json` file will be saved in the same folder.
 
 **Note**: checkpoints contain:
@@ -248,8 +203,7 @@ By default, values of loss  will be logged. If you need more visualizations, use
 
 ## TODOs
 - [ ] ~~Dataset cache mechanism to speed up training loop~~
-- [x] Multi-node multi-gpu setup for training (DistributedDataParallel)
-- [x] Multi-node multi-gpu setup for inference (DDP)
+- [x] Multi-node multi-gpu setup (DistributedDataParallel)
 
 ## Citations
 If you find this code useful please cite our [paper](https://arxiv.org/abs/2004.07464):

@@ -15,7 +15,6 @@ from data_utils import documents
 
 logger = logging.getLogger('PICK')
 
-
 class MLPLayer(nn.Module):
     def __init__(self,
                  in_dim: int,
@@ -63,7 +62,6 @@ class MLPLayer(nn.Module):
     def forward(self, *input: torch.Tensor) -> torch.Tensor:
         return self.mlp(torch.cat(input, 1))
 
-
 class BiLSTMLayer(nn.Module):
 
     def __init__(self, lstm_kwargs, mlp_kwargs):
@@ -91,16 +89,12 @@ class BiLSTMLayer(nn.Module):
         :param initial: (num_layers * directions, batch, D)
         :return: (B, N*T, out_dim)
         '''
-
         # B*N, T, hidden_size
-        # https://stackoverflow.com/questions/70428140/runtimeerror-lengths-argument-should-be-a-1d-cpu-int64-tensor-but-got-1d-cud
-        x_seq, sorted_lengths, invert_order, h_0, c_0 = self.sort_tensor(x_seq, lenghts.to('cpu'), initial[0], initial[0])
+        x_seq, sorted_lengths, invert_order, h_0, c_0 = self.sort_tensor(x_seq, lenghts, initial[0], initial[0])
         packed_x = nn.utils.rnn.pack_padded_sequence(x_seq, lengths=sorted_lengths, batch_first=True)
         self.lstm.flatten_parameters()
-        torch.cuda.empty_cache()
         output, _ = self.lstm(packed_x)
-        output, _ = nn.utils.rnn.pad_packed_sequence(output, 
-                                                     batch_first=True,
+        output, _ = nn.utils.rnn.pad_packed_sequence(output, batch_first=True,
                                                      padding_value=keys_vocab_cls.stoi['<pad>'])
         # total_length=documents.MAX_BOXES_NUM * documents.MAX_TRANSCRIPT_LEN
         output = output[invert_order]
@@ -108,20 +102,18 @@ class BiLSTMLayer(nn.Module):
         # (B, N*T, out_dim)
         return logits
 
-
 class UnionLayer(nn.Module):
-
     def __init__(self):
         super().__init__()
 
-    def forward(self, x: Tensor, x_gcn: Tensor, mask: Tensor, length: Tensor, tags):
+    def forward(self, x: Tensor, x_gcn: Tensor, mask: Tensor, text_length: Tensor, tags):
         '''
         For a document, we merge all non-paddding (valid) x and x_gcn value together in a document-level format,
         then feed it into crf layer.
         :param x: set of nodes, the output of encoder, (B, N, T, D)
         :param x_gcn: node embedding, the output of graph module, (B, N, D)
         :param mask: whether is non-padding (valid) value at i-th position of segments, (B, N, T)
-        :param length: the length of every segments (boxes) of documents, (B, N)
+        :param text_length: the length of every segments (boxes) of documents, (B, N)
         :param tags: IBO label for every segments of documents, (B, N, T)
         :return:
                 new_x, (B, max_doc_seq_len, D)
@@ -142,32 +134,62 @@ class UnionLayer(nn.Module):
         x = x_gcn + x
 
         # (B, )
-        doc_seq_len = length.sum(dim=-1)
-
+        doc_seq_len = text_length.sum(dim=-1)
         # dynamic calculate max document's union sequences length, only used to one gpus training mode.
         max_doc_seq_len = doc_seq_len.max()
         # static calculate max_doc_seq_len
         # max_doc_seq_len = documents.MAX_BOXES_NUM * documents.MAX_TRANSCRIPT_LEN
+        logger.info(f'Type of doc_seq_len {type(doc_seq_len)}')
+        logger.info(f'Shape of doc_seq_len {doc_seq_len.shape}')
+        logger.info(f'doc_seq_len {doc_seq_len}')
 
         # init x, mask, tags value
         # (B, N*T, D)
         new_x = torch.zeros_like(x, device=x.device)
         # (B, N*T)
+        logger.info(f'Type of mask: {mask}') #torch.uint8
+        logger.info(f'Shape of mask {mask.shape}') # (B, N*T)
         new_mask = torch.zeros_like(mask, device=x.device)
+        logger.info(f'Type of new_mask: {new_mask}') #torch.uint8
+        logger.info(f'Shape of new_mask {new_mask.shape}') # (B, N*T)
         if self.training:
             # (B, N*T)
             tags = tags.reshape(B, N * T)
             new_tag = torch.full_like(tags, iob_labels_vocab_cls.stoi['<pad>'], device=x.device)
             new_tag = new_tag[:, :max_doc_seq_len]
 
+        logger.info(f'range(b) f{range(B)}')
         # merge all non-padding value together in document-level
+        # original implementation below has an issue when we process single batch.
+        # for i in range(B):  # enumerate every document
+        #     doc_x = x[i]  # (N*T, D)
+        #     doc_mask = mask[i]  # (N*T,)
+        #     valid_doc_x = doc_x[doc_mask == 1]  # (num_valid, D)
+        #     num_valid = valid_doc_x.size(0)
+        #     new_x[i, :num_valid] = valid_doc_x  # (B, N*T, D)
+        #     new_mask[i, :doc_seq_len[i]] = 1  # (B, N*T)
+
         for i in range(B):  # enumerate every document
-            doc_x = x[i]  # (N*T, D)
-            doc_mask = mask[i]  # (N*T,)
+            # When B=1, avoid extra dimension by squeezing
+            doc_x = x.squeeze(0) if B == 1 else x[i]  # (N*T, D)
+            doc_mask = mask.squeeze(0) if B == 1 else mask[i]  # (N*T,)
+
+            # Apply the mask to get valid document parts
             valid_doc_x = doc_x[doc_mask == 1]  # (num_valid, D)
             num_valid = valid_doc_x.size(0)
-            new_x[i, :num_valid] = valid_doc_x  # (B, N*T, D)
-            new_mask[i, :doc_seq_len[i]] = 1  # (B, N*T)
+            
+            # Handle single or multiple documents differently
+            new_x[0 if B == 1 else i, :num_valid] = valid_doc_x  # (B, N*T, D)
+            new_mask[0 if B == 1 else i, :doc_seq_len[0 if B == 1 else i]] = 1  # (B, N*T)
+
+            logger.info("-"*50)
+            logger.info(f"doc_x, {doc_x}")
+            logger.info(f"doc_mask {doc_mask}")
+            logger.info(f"valid_doc_x {valid_doc_x}")
+            logger.info(f"num_valid {valid_doc_x.size(0)}")
+            logger.info(f"new_x {valid_doc_x}")
+            logger.info(f"new_mask {new_mask}")
+            logger.info("-"*50)
 
             if self.training:
                 valid_tag = tags[i][doc_mask == 1]
@@ -177,24 +199,24 @@ class UnionLayer(nn.Module):
         new_x = new_x[:, :max_doc_seq_len, :]
         # (B, max_doc_seq_len)
         new_mask = new_mask[:, :max_doc_seq_len]
+        logger.info(f'Union out new_x {new_x.shape}')
+        logger.info(f'Union out new_mask {new_mask.shape}')
+        logger.info(f'Union out doc_seq_len {doc_seq_len.shape}')
 
         if self.training:
             return new_x, new_mask, doc_seq_len, new_tag
         else:
             return new_x, new_mask, doc_seq_len, None
 
-
 class Decoder(nn.Module):
-
     def __init__(self, bilstm_kwargs, mlp_kwargs, crf_kwargs):
         super().__init__()
         self.union_layer = UnionLayer()
         self.bilstm_layer = BiLSTMLayer(bilstm_kwargs, mlp_kwargs)
         self.crf_layer = ConditionalRandomField(**crf_kwargs)
 
-    def forward(self, x: Tensor, x_gcn: Tensor, mask: Tensor, length: Tensor, tags: Tensor):
+    def forward(self, x: Tensor, x_gcn: Tensor, mask: Tensor, text_length: Tensor, tags: Tensor):
         '''
-
         :param x: set of nodes, the output of encoder, (B, N, T, D)
         :param x_gcn: node embedding, the output of graph module, (B, N, D)
         :param mask: whether is non-padding (valid) value at i-th position of segments, (B, N, T)
@@ -204,7 +226,7 @@ class Decoder(nn.Module):
         '''
         # new_x: (B, max_doc_seq_len, D), new_mask: (B, max_doc_seq_len),
         # doc_seq_len: (B, ), new_tag: (B, N*T)
-        new_x, new_mask, doc_seq_len, new_tag = self.union_layer(x, x_gcn, mask, length, tags)
+        new_x, new_mask, doc_seq_len, new_tag = self.union_layer(x, x_gcn, mask, text_length, tags)
 
         # (B, N*T, out_dim)
         logits = self.bilstm_layer(new_x, doc_seq_len, (None, None))

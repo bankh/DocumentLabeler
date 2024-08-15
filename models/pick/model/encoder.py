@@ -10,10 +10,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.ops import roi_align
 from torchvision.ops import roi_pool
-import torch.cuda.amp
 
 from . import resnet
 
+# ToDo: Change print statements inline debugging to logger.info 
+# (passing debug_mode is required)
+import logging
+logger = logging.getLogger(__name__)
 
 class Encoder(nn.Module):
 
@@ -71,11 +74,7 @@ class Encoder(nn.Module):
         else:
             raise NotImplementedError()
 
-        self.conv = nn.Conv2d(image_feature_dim, out_dim, self.roi_pooling_size, bias=False)
-        # If a nn.Conv2d layer is directly followed by a nn.BatchNorm2d layer, then the bias
-        # in the convolution is not needed, instead use nn.Conv2d(..., bias=False, ....). 
-        # Bias is not needed because in the first step BatchNorm subtracts the mean, which
-        # effectively cancels out the effect of bias.
+        self.conv = nn.Conv2d(image_feature_dim, out_dim, self.roi_pooling_size)
         self.bn = nn.BatchNorm2d(out_dim)
 
         self.projection = nn.Linear(2 * out_dim, out_dim)
@@ -94,91 +93,22 @@ class Encoder(nn.Module):
         self.pe_dropout = nn.Dropout(self.dropout)
         self.output_dropout = nn.Dropout(self.dropout)
 
-    # def forward(self, images: torch.Tensor, boxes_coordinate: torch.Tensor, transcripts: torch.Tensor,
-    #             src_key_padding_mask: torch.Tensor):
-    #     '''
-
-    #     :param images: whole_images, shape is (B, N, H, W, C), where B is batch size, N is the number of segments of
-    #             the documents, H is height of image, W is width of image, C is channel of images (default is 3).
-    #     :param boxes_coordinate: boxes coordinate, shape is (B, N, 8),
-    #             where 8 is coordinates (x1, y1, x2, y2, x3, y3, x4, y4).
-    #     :param transcripts: text segments, shape is (B, N, T, D), where T is the max length of transcripts,
-    #                             D is dimension of model.
-    #     :param src_key_padding_mask: text padding mask, shape is (B*N, T), True for padding value.
-    #         if provided, specified padding elements in the key will be ignored by the attention.
-    #         This is an binary mask. When the value is True, the corresponding value on the attention layer of Transformer
-    #         will be filled with -inf.
-    #     need_weights: output attn_output_weights.
-    #     :return: set of nodes X, shape is (B*N, T, D)
-    #     '''
-
-    #     B, N, T, D = transcripts.shape
-
-    #     # get image embedding using cnn
-    #     # (B, 3, H, W)
-    #     _, _, origin_H, origin_W = images.shape
-
-    #     # image embedding: (B, C, H/16, W/16)
-    #     images = self.cnn(images)
-    #     _, C, H, W = images.shape
-
-    #     # generate rois for roi pooling, rois shape is (B, N, 5), 5 means (batch_index, x0, y0, x1, y1)
-    #     rois_batch = torch.zeros(B, N, 5, device=images.device)
-    #     # Loop on the every image.
-    #     for i in range(B):  # (B, N, 8)
-    #         # (N, 8)
-    #         doc_boxes = boxes_coordinate[i]
-    #         # (N, 4)
-    #         pos = torch.stack([doc_boxes[:, 0], doc_boxes[:, 1], doc_boxes[:, 4], doc_boxes[:, 5]], dim=1)
-    #         rois_batch[i, :, 1:5] = pos
-    #         rois_batch[i, :, 0] = i
-
-    #     spatial_scale = float(H / origin_H)
-    #     # use roi pooling get image segments
-    #     # (B*N, C, roi_pooling_size, roi_pooling_size)
-    #     if self.roi_pooling_mode == 'roi_align':
-    #         image_segments = roi_align(images, rois_batch.view(-1, 5), self.roi_pooling_size, spatial_scale)
-    #     else:
-    #         image_segments = roi_pool(images, rois_batch.view(-1, 5), self.roi_pooling_size, spatial_scale)
-
-    #     # (B*N, D, 1, 1)
-    #     image_segments = F.relu(self.bn(self.conv(image_segments)))
-    #     # image_segments = F.selu(self.bn(self.conv(image_segments)))
-    #     # # (B*N, D,)
-    #     image_segments = image_segments.squeeze()
-
-    #     # (B*N, 1, D)
-    #     image_segments = image_segments.unsqueeze(dim=1)
-
-    #     # add positional embedding
-    #     transcripts_segments = self.pe_dropout(transcripts + self.position_embedding[:, :, :transcripts.size(2), :])
-    #     # (B*N, T ,D)
-    #     transcripts_segments = transcripts_segments.reshape(B * N, T, D)
-
-    #     # (B*N, T, D)
-    #     image_segments = image_segments.expand_as(transcripts_segments)
-
-    #     # here we first add image embedding and text embedding together,
-    #     # then as the input of transformer to get a non-local fusion features, different from paper process.
-    #     out = image_segments + transcripts_segments
-
-    #     # (T, B*N, D)
-    #     out = out.transpose(0, 1).contiguous()
-
-    #     # (T, B*N, D)
-    #     out = self.transformer_encoder(out, src_key_padding_mask=src_key_padding_mask)
-
-    #     # (B*N, T, D)
-    #     out = out.transpose(0, 1).contiguous()
-    #     out = self.norm(out)
-    #     out = self.output_dropout(out)
-
-    #     return out
-
-
     def forward(self, images: torch.Tensor, boxes_coordinate: torch.Tensor, transcripts: torch.Tensor,
                 src_key_padding_mask: torch.Tensor):
-
+        '''
+        :param images: whole_images, shape is (B, N, H, W, C), where B is batch size, N is the number of segments of
+                the documents, H is height of image, W is width of image, C is channel of images (default is 3).
+        :param boxes_coordinate: boxes coordinate, shape is (B, N, 8),
+                where 8 is coordinates (x1, y1, x2, y2, x3, y3, x4, y4).
+        :param transcripts: text segments, shape is (B, N, T, D), where T is the max length of transcripts,
+                                D is dimension of model.
+        :param src_key_padding_mask: text padding mask, shape is (B*N, T), True for padding value.
+            if provided, specified padding elements in the key will be ignored by the attention.
+            This is an binary mask. When the value is True, the corresponding value on the attention layer of Transformer
+            will be filled with -inf.
+        need_weights: output attn_output_weights.
+        :return: set of nodes X, shape is (B*N, T, D)
+        '''
         B, N, T, D = transcripts.shape
 
         # get image embedding using cnn
@@ -192,34 +122,63 @@ class Encoder(nn.Module):
         # generate rois for roi pooling, rois shape is (B, N, 5), 5 means (batch_index, x0, y0, x1, y1)
         rois_batch = torch.zeros(B, N, 5, device=images.device)
 
-        # Loop on the every image.
-        for i in range(B):  # (B, N, 8)
-            # (N, 8)
-            doc_boxes = boxes_coordinate[i]
-            # (N, 4)
-            pos = torch.stack([doc_boxes[:, 0], doc_boxes[:, 1], doc_boxes[:, 4], doc_boxes[:, 5]], dim=1)
-            rois_batch[i, :, 1:5] = pos
-            rois_batch[i, :, 0] = i
+        # Check if the object is already a torch.Tensor
+        if not isinstance(boxes_coordinate, torch.Tensor):
+            boxes_coordinate = torch.tensor(boxes_coordinate)
+        
+        print("Type of boxes_coordinate:",type(boxes_coordinate))
+        print("Shape of the boxes_coordinate:",boxes_coordinate.shape)
+
+        if B > 1:
+            # Loop on the every image.
+            for i in range(B):  # (B, N, 8)
+                # (N, 8)
+                doc_boxes = boxes_coordinate[i]
+                
+                # Debug print statements
+                print(f"Iteration {i}")
+                print(f"doc_boxes.shape: {doc_boxes.shape}")
+                # print(f"doc_boxes: {doc_boxes}")
+                
+                # Attempt to access specific indices
+                try:
+                    pos = torch.stack([doc_boxes[:, 0], doc_boxes[:, 1], doc_boxes[:, 4], doc_boxes[:, 5]], dim=1)
+                    print(f"pos.shape: {pos.shape}")
+                    # print(f"pos: {pos}")
+                except IndexError as e:
+                    print(f"IndexError: {e}")
+                    print("It seems that doc_boxes might not have the expected number of dimensions or size.")
+                
+                rois_batch[i, :, 1:5] = pos
+                print(f"rois_batch.shape: {rois_batch.shape}")
+                rois_batch[i, :, 0] = i
+        else:
+            doc_boxes = boxes_coordinate.squeeze(0)
+            # Debug print statements
+            print(f"doc_boxes.shape: {doc_boxes.shape}")
+            # print(f"doc_boxes: {doc_boxes}")
+            try:
+                pos = torch.stack([doc_boxes[:,0], doc_boxes[:,1], doc_boxes[:,4], doc_boxes[:,5]],dim=1)
+                print(f"pos.shape: {pos.shape}")
+                # print(f"pos: {pos}")
+            except IndexError as e:
+                print(f"IndexError: {e}")
+            
+            rois_batch[0, :, 1:5] = pos
+            rois_batch[0, :, 0] = 1
+
 
         spatial_scale = float(H / origin_H)
-        
-        # Ensure images and rois_batch tensors are in the same data type for RoI operations
-        with torch.cuda.amp.autocast(enabled=False):  # disable AMP temporarily
-            images = images.float()
-            rois_batch = rois_batch.float()
-            if self.roi_pooling_mode == 'roi_align':
-                image_segments = roi_align(images, rois_batch.view(-1, 5), self.roi_pooling_size, spatial_scale)
-            else:
-                image_segments = roi_pool(images, rois_batch.view(-1, 5), self.roi_pooling_size, spatial_scale)
-
-        # Continue with the previous data type (which might be float16 if AMP is enabled)
-        image_segments = image_segments.half() if images.dtype == torch.float16 else image_segments
-
+        # use roi pooling get image segments
+        # (B*N, C, roi_pooling_size, roi_pooling_size)
+        if self.roi_pooling_mode == 'roi_align':
+            image_segments = roi_align(images, rois_batch.view(-1, 5), self.roi_pooling_size, spatial_scale)
+        else:
+            image_segments = roi_pool(images, rois_batch.view(-1, 5), self.roi_pooling_size, spatial_scale)
 
         # (B*N, D, 1, 1)
         image_segments = F.relu(self.bn(self.conv(image_segments)))
-
-        # (B*N, D,)
+        # # (B*N, D,)
         image_segments = image_segments.squeeze()
 
         # (B*N, 1, D)
@@ -227,7 +186,6 @@ class Encoder(nn.Module):
 
         # add positional embedding
         transcripts_segments = self.pe_dropout(transcripts + self.position_embedding[:, :, :transcripts.size(2), :])
-
         # (B*N, T ,D)
         transcripts_segments = transcripts_segments.reshape(B * N, T, D)
 

@@ -129,8 +129,7 @@ def test_model_forward():
 
 
 def test_read_csv():
-    filename = r'/home/Wen/data/code/PICK/PICK-pytorch/data/data_examples_root/train_samples_list.csv'
-    # filename = r'/home/Wen/data/code/PICK/PICK-pytorch/data/data_examples_root/baseline_test.csv'
+    filename = r'/path/to/data/data_examples_root/train_samples_list.csv'
     res = pd.read_csv(filename, header=None,
                       names=['index', 'document_class', 'file_name'])
     item = res.iloc[0]

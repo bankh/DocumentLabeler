@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # @Author: Wenwen Yu
 # @Created Time: 7/8/2020 10:54 PM
+
 from typing import *
 
 import torch
@@ -12,21 +13,37 @@ from .graph import GLCN
 from .decoder import Decoder
 from utils.class_utils import keys_vocab_cls, iob_labels_vocab_cls
 
+import logging
+logger = logging.getLogger(__name__)
+
 class PICKModel(nn.Module):
+
     def __init__(self, **kwargs):
         super().__init__()
+
+        self.params = kwargs
+        logger.info(f"self.params.keys(): {self.params.keys()}")
+        
         embedding_kwargs = kwargs['embedding_kwargs']
         encoder_kwargs = kwargs['encoder_kwargs']
         graph_kwargs = kwargs['graph_kwargs']
         decoder_kwargs = kwargs['decoder_kwargs']
-        self.make_model(embedding_kwargs, encoder_kwargs, graph_kwargs, decoder_kwargs)
+        self.make_model(embedding_kwargs, 
+                        encoder_kwargs, 
+                        graph_kwargs, 
+                        decoder_kwargs
+                        )
 
-    def make_model(self, embedding_kwargs, encoder_kwargs, graph_kwargs, decoder_kwargs):
+    def make_model(self, 
+                   embedding_kwargs, 
+                   encoder_kwargs, 
+                   graph_kwargs, 
+                   decoder_kwargs):
         # Given the params of each component, creates components.
         # embedding_kwargs-> word_emb
         embedding_kwargs['num_embeddings'] = len(keys_vocab_cls)
         self.word_emb = nn.Embedding(**embedding_kwargs)
-    
+
         encoder_kwargs['char_embedding_dim'] = embedding_kwargs['embedding_dim']
         self.encoder = Encoder(**encoder_kwargs)
 
@@ -71,6 +88,9 @@ class PICKModel(nn.Module):
         '''
         B, N, T = mask.shape
         mask = mask.reshape(B * N, T)
+        # Ensure the mask is a PyTorch tensor
+        # if not isinstance(mask, torch.Tensor):
+        #     mask = torch.tensor(mask)
         mask_sum = mask.sum(dim=-1)  # (B*N,)
 
         # (B*N,)
@@ -82,7 +102,7 @@ class PICKModel(nn.Module):
         # So we do not mask all padded sample. Instead we mask it after Transformer encoding.
         src_key_padding_mask = torch.logical_not(mask.bool()) & graph_node_mask  # True for padding mask position
         return src_key_padding_mask, graph_node_mask
-
+    
     def forward(self, **kwargs):
         # input
         whole_image = kwargs['whole_image']  # (B, 3, H, W)
@@ -94,9 +114,14 @@ class PICKModel(nn.Module):
         boxes_coordinate = kwargs['boxes_coordinate']  # (B, num_boxes, 8)
 
         ##### Forward Begin #####
+
         ### Encoder module ###
         # word embedding
         text_emb = self.word_emb(text_segments)
+
+        logger.info(f"Mask shape {mask.shape}")
+        logger.info(f"Boxes coordinate {type(boxes_coordinate)}")
+
         # src_key_padding_mask is text padding mask, True is padding value (B*N, T)
         # graph_node_mask is mask for graph, True is valid node, (B*N, T)
         src_key_padding_mask, graph_node_mask = self.compute_mask(mask)
@@ -105,7 +130,6 @@ class PICKModel(nn.Module):
                          boxes_coordinate=boxes_coordinate, 
                          transcripts=text_emb,
                          src_key_padding_mask=src_key_padding_mask)
-
         ### Graph module ###
         # text_mask, True for valid, (including all not valid node), (B*N, T)
         text_mask = torch.logical_not(src_key_padding_mask).byte()
@@ -115,23 +139,32 @@ class PICKModel(nn.Module):
         graph_node_mask = graph_node_mask.any(dim=-1, keepdim=True)
         # (B*N, D), filter out not valid node
         x_gcn = x_gcn * graph_node_mask.byte()
-
         # initial adjacent matrix (B, N, N)
         B, N, T = mask.shape
         init_adj = torch.ones((B, N, N), device=text_emb.device)
         boxes_num = mask[:, :, 0].sum(dim=1, keepdim=True)  # (B, 1)
         # (B, N, D)
         x_gcn = x_gcn.reshape(B, N, -1)
+
+        logger.info(f"relation_features: {type(relation_features)}")
+        
         # (B, N, D), (B, N, N), (B,)
-        x_gcn, soft_adj, gl_loss = self.graph(x_gcn, relation_features, init_adj, boxes_num)
+        x_gcn, soft_adj, gl_loss = self.graph(x_gcn, 
+                                              relation_features, 
+                                              init_adj, 
+                                              boxes_num)
         adj = soft_adj * init_adj
 
+        logger.info(f"Type of text_length: {type(text_length)}")
+        logger.info(f"Shape of text_length: {text_length.shape}")
+        logger.info(f"text_length: {text_length}")
         ### Decoder module ###
         logits, new_mask, log_likelihood = self.decoder(x.reshape(B, N, T, -1), 
                                                         x_gcn, 
                                                         mask, 
                                                         text_length,
                                                         iob_tags_label)
+        
         ##### Forward End #####
 
         output = {"logits": logits, "new_mask": new_mask, "adj": adj}

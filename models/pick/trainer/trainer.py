@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # @Author: Wenwen Yu
 # @Created Time: 7/12/2020 9:50 PM
+
 import os
 import numpy as np
 from numpy import inf
@@ -12,34 +13,27 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from utils import inf_loop
 from utils.metrics import MetricTracker, SpanBasedF1MetricTracker
 from logger import TensorboardWriter
-from logger.logger import log_gpu_memory
-
 from utils.class_utils import iob_labels_vocab_cls
 from utils.util import iob_tags_to_union_iob_tags
+
 
 class Trainer:
     """
     Trainer class
     """
-    def __init__(
-        self, 
-        model, 
-        optimizer, 
-        config, 
-        data_loader,         
-        valid_data_loader=None, 
-        lr_scheduler=None, 
-        max_len_step=None):
+
+    def __init__(self, model, optimizer, config, data_loader,
+                 valid_data_loader=None, lr_scheduler=None, max_len_step=None):
         '''
+
         :param model:
         :param optimizer:
         :param config:
         :param data_loader:
         :param valid_data_loader:
         :param lr_scheduler:
-        :param max_len_step: controls number of batches(steps) in each epoch.
+        :param max_len_step:  controls number of batches(steps) in each epoch.
         '''
-        # Pass configuration into trainer
         self.config = config
         self.distributed = config['distributed']
         if self.distributed:
@@ -51,11 +45,10 @@ class Trainer:
         self.logger = config.get_logger('trainer', config['trainer']['log_verbosity']) if self.local_master else None
 
         # setup GPU device if available, move model into configured device
-        self.device, self.device_ids = self._prepare_device(config['local_rank'], \
-                                                            config['local_world_size'])
+        self.device, self.device_ids = self._prepare_device(config['local_rank'], config['local_world_size'])
         self.model = model.to(self.device)
+
         self.optimizer = optimizer
-        self.start_epoch = 1
 
         cfg_trainer = config['trainer']
         self.epochs = cfg_trainer['epochs']
@@ -65,8 +58,7 @@ class Trainer:
             self.monitor = cfg_trainer.get('monitor', 'off')
         else:
             self.monitor = 'off'
-        self.logger_info('Setup config, process, and GPU completed...')
-        
+
         # configuration to monitor model performance and save best
         if self.monitor == 'off':
             self.monitor_mode = 'off'
@@ -79,29 +71,25 @@ class Trainer:
             self.early_stop = cfg_trainer.get('early_stop', inf)
             self.early_stop = inf if self.early_stop == -1 else self.early_stop
 
+        self.start_epoch = 1
+
         if self.local_master:
             self.checkpoint_dir = config.save_dir
             # setup visualization writer instance
             self.writer = TensorboardWriter(config.log_dir, self.logger, cfg_trainer['tensorboard'])
 
-        self.logger_info('Configuration to monitor model performance...')
         # load checkpoint for resume training
         if config.resume is not None:
             self._resume_checkpoint(config.resume)
 
-        self.logger_info('Load checkpoint for resume training completed')
-        
         # load checkpoint following load to multi-gpu, avoid 'module.' prefix
         if self.config['trainer']['sync_batch_norm'] and self.distributed:
             self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
-            self.logger_info('Sync batch norm.')
+
         if self.distributed:
-            self.model = DDP(self.model, 
-                             device_ids=self.device_ids, 
-                             output_device=self.device_ids[0],
-                             find_unused_parameters=True)
-            self.logger_info('DDP model completed.')
-        
+            self.model = DDP(self.model, device_ids=self.device_ids, output_device=self.device_ids[0],
+                            find_unused_parameters=True)
+
         self.data_loader = data_loader
         if max_len_step is None:  # max length of iteration step of every epoch
             # epoch-based training
@@ -110,28 +98,24 @@ class Trainer:
             # iteration-based training
             self.data_loader = inf_loop(data_loader)
             self.len_step = max_len_step
-
-        self.grad_accum_steps = config['trainer'].get('grad_accum_steps', 1)
-
         self.valid_data_loader = valid_data_loader
         self.do_validation = self.valid_data_loader is not None
-        self.logger_info('Valid data loader entered')
         self.lr_scheduler = lr_scheduler
-        self.logger_info('Scheduler entered')
+
         log_step = self.config['trainer']['log_step_interval']
-        self.log_step = log_step if log_step != -1 and 0 < log_step < self.len_step \
-                                 else int(np.sqrt(data_loader.batch_size))
+        self.log_step = log_step if log_step != -1 and 0 < log_step < self.len_step else int(
+            np.sqrt(data_loader.batch_size))
+
         val_step_interval = self.config['trainer']['val_step_interval']
         # self.val_step_interval = val_step_interval if val_step_interval!= -1 and 0 < val_step_interval < self.len_step\
         #                                             else int(np.sqrt(data_loader.batch_size))
         self.val_step_interval = val_step_interval
-        self.logger_info('Step interval entered')
+
         self.gl_loss_lambda = self.config['trainer']['gl_loss_lambda']
+
         self.train_loss_metrics = MetricTracker('loss', 'gl_loss', 'crf_loss',
                                                 writer=self.writer if self.local_master else None)
-        self.logger_info('MetricTracker completed')
         self.valid_f1_metrics = SpanBasedF1MetricTracker(iob_labels_vocab_cls)
-        self.logger_info('End of trainer')
 
     def train(self):
         """
@@ -191,7 +175,7 @@ class Trainer:
             improved = (self.monitor_mode == 'min' and val_monitor_metric_res <= self.monitor_best) or \
                        (self.monitor_mode == 'max' and val_monitor_metric_res >= self.monitor_best)
         except KeyError:
-            self.logger_warning("Warning: Metric '{}' is not found."
+            self.logger_warning("Warning: Metric '{}' is not found. "
                                 "Model performance monitoring is disabled.".format(self.monitor_metric))
             self.monitor_mode = 'off'
             improved = False
@@ -211,47 +195,38 @@ class Trainer:
         '''
         self.model.train()
         self.train_loss_metrics.reset()
-
         ## step iteration start ##
         for step_idx, input_data_item in enumerate(self.data_loader):
             step_idx += 1
-
-            # Before loading data to GPU
-            log_gpu_memory("before data loading", step_idx)
-
             for key, input_value in input_data_item.items():
                 if input_value is not None and isinstance(input_value, torch.Tensor):
                     input_data_item[key] = input_value.to(self.device, non_blocking=True)
-            # After loading data to GPU
-            log_gpu_memory("after data loading", step_idx)
-
-            # model forward
-            output = self.model(**input_data_item)
-
-            # After forward pass
-            log_gpu_memory("after forward pass", step_idx)
-
-            # calculate loss
-            gl_loss = output['gl_loss']
-            crf_loss = output['crf_loss']
-            total_loss = torch.sum(crf_loss) + self.gl_loss_lambda * torch.sum(gl_loss)
-
-            # Normalize loss by grad_accum_steps
-            total_loss = total_loss / self.grad_accum_steps
-
-            # backward
-            total_loss.backward()
-
-            # After backward pass
-            log_gpu_memory("after backward pass", step_idx)
-
-            # Gradient accumulation
-            if (step_idx + 1) % self.grad_accum_steps == 0:
-                # Update model parameters
+            if self.config['trainer']['anomaly_detection']:
+                # This mode will increase the runtime and should only be enabled for debugging
+                with torch.autograd.detect_anomaly():
+                    self.optimizer.zero_grad()
+                    # model forward
+                    output = self.model(**input_data_item)
+                    # calculate loss
+                    gl_loss = output['gl_loss']
+                    crf_loss = output['crf_loss']
+                    total_loss = torch.sum(crf_loss) + self.gl_loss_lambda * torch.sum(gl_loss)
+                    # backward
+                    total_loss.backward()
+                    # self.average_gradients(self.model)
+                    self.optimizer.step()
+            else:
+                self.optimizer.zero_grad()
+                # model forward
+                output = self.model(**input_data_item)
+                # calculate loss
+                gl_loss = output['gl_loss']
+                crf_loss = output['crf_loss']
+                total_loss = torch.sum(crf_loss) + self.gl_loss_lambda * torch.sum(gl_loss)
+                # backward
+                total_loss.backward()
+                # self.average_gradients(self.model)
                 self.optimizer.step()
-                # self.optimizer.zero_grad()
-                for param in self.model.parameters():
-                    param.grad = None
 
             # Use a barrier() to make sure that all process have finished forward and backward
             if self.distributed:
@@ -269,7 +244,6 @@ class Trainer:
             avg_gl_loss = torch.mean(gl_loss)
             avg_crf_loss = torch.mean(crf_loss)
             avg_loss = avg_crf_loss + self.gl_loss_lambda * avg_gl_loss
-
             # update metrics
             self.writer.set_step((epoch - 1) * self.len_step + step_idx - 1) if self.local_master else None
             self.train_loss_metrics.update('loss', avg_loss.item())
@@ -279,14 +253,15 @@ class Trainer:
             # log messages
             if step_idx % self.log_step == 0:
                 self.logger_info('Train Epoch:[{}/{}] Step:[{}/{}] Total Loss: {:.6f} GL_Loss: {:.6f} CRF_Loss: {:.6f}'.
-                                format(epoch, self.epochs, step_idx, self.len_step,
+                                 format(epoch, self.epochs, step_idx, self.len_step,
                                         avg_loss.item(), avg_gl_loss.item() * self.gl_loss_lambda, avg_crf_loss.item()))
+                # self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
 
             # do validation after val_step_interval iteration
             if self.do_validation and step_idx % self.val_step_interval == 0:
                 val_result_dict = self._valid_epoch(epoch)
                 self.logger_info('[Step Validation] Epoch:[{}/{}] Step:[{}/{}]  \n{}'.
-                                format(epoch, self.epochs, step_idx, self.len_step,
+                                 format(epoch, self.epochs, step_idx, self.len_step,
                                         SpanBasedF1MetricTracker.dict2str(val_result_dict)))
 
                 # check if best metric, if true, then save as model_best checkpoint.
@@ -299,6 +274,7 @@ class Trainer:
                 break
 
         ## step iteration end ##
+
         # {'loss': avg_loss, 'gl_loss': avg_gl_loss, 'crf_loss': avg_crf_loss}
         log = self.train_loss_metrics.result()
 
@@ -318,6 +294,7 @@ class Trainer:
         :param epoch: Integer, current training epoch.
         :return: A dict that contains information about validation
         '''
+
         self.model.eval()
         self.valid_f1_metrics.reset()
         with torch.no_grad():
@@ -397,10 +374,6 @@ class Trainer:
         if self.distributed:
             ngpu_per_process = torch.cuda.device_count() // local_world_size
             device_ids = list(range(local_rank * ngpu_per_process, (local_rank + 1) * ngpu_per_process))
-            # device_ids = list(range(torch.cuda.device_count()))
-
-            self.logger_info("ngpu_per_process"+str(ngpu_per_process))
-            self.logger_info("local_rank"+str(local_rank))
 
             if torch.cuda.is_available() and local_rank != -1:
                 torch.cuda.set_device(device_ids[0])  # device_ids[0] =local_rank if local_world_size = n_gpu per node
@@ -412,7 +385,6 @@ class Trainer:
             else:
                 self.logger_warning('Training will be using CPU!')
                 device = 'cpu'
-                
             device = torch.device(device)
             return device, device_ids
         else:

@@ -1,4 +1,4 @@
-# Copyright (C) <2022-present> Sinan Bank, Craftnetics Inc., Colorado State University, Fort Collins
+# Copyright (C) <2022-present> Sinan Bank, Colorado State University, Fort Collins
 # Copyright (C) <2015-2022> Tzutalin
 # Copyright (C) <2013-2015> MIT, Computer Science and Artificial Intelligence Laboratory. Bryan Russell, 
 # Antonio Torralba, William T. Freeman. Permission is hereby granted, free of charge, to any person obtaining 
@@ -67,7 +67,8 @@ from PIL import Image
 
 from PyQt5.QtCore import QSize, Qt, QPoint, QByteArray, QTimer, QFileInfo, QPointF, QProcess, QMargins, QRect
 from PyQt5.QtGui import QImage, QCursor, QPixmap, QImageReader
-from PyQt5.QtWidgets import QMainWindow, QListWidget, QVBoxLayout, QToolButton, QHBoxLayout, QDockWidget, QWidget, \
+from PyQt5.QtWidgets import QMainWindow, QListWidget, QVBoxLayout, QLineEdit, QCheckBox, QFormLayout, QToolButton, \
+                            QHBoxLayout, QDockWidget, QWidget, \
                             QSlider, QGraphicsOpacityEffect, QMessageBox, QListView, QScrollArea, QWidgetAction, \
                             QApplication, QLabel, QGridLayout, QFileDialog, QListWidgetItem, QComboBox, QDialog, \
                             QAbstractItemView, QTabWidget, QVBoxLayout, QSizePolicy, QSpacerItem, QProgressBar
@@ -105,9 +106,16 @@ from libs.keyDialog import KeyDialog
 from libs.consoleTab import ConsoleTab
 from libs.progress_bar import ExportProgress
 
+import logging
+# Configure the logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# To solve xbc issue your bashrc needs to set it up: 
+# For example: 'export QT_QPA_PLATFORM_PLUGIN_PATH=/usr/lib/x86_64-linux-gnu/qt5/plugins/platforms/'
 os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
 
-__appname__ = 'Document_Labeler'
+__appname__ = 'DocumentLabeler'
 
 LABEL_COLORMAP = label_colormap()
 
@@ -118,6 +126,7 @@ class MainWindow(QMainWindow):
                  lang="en",
                  gpu=False,
                  kie_mode=False,
+                 debug_mode=False,
                  default_filename=None,
                  default_predefined_class_file=None,
                  default_save_dir=None):
@@ -125,6 +134,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(__appname__)
         self.setWindowState(Qt.WindowMaximized)  # Set window max
         self.activateWindow()                    # DocumentLabeler goes to the front when activate
+
+        # Debug mode
+        self.debug_mode = debug_mode
 
         # Load setting in the main thread
         self.settings = Settings()
@@ -184,40 +196,20 @@ class MainWindow(QMainWindow):
         self.autoSaveNum = 5
 
         # [Part of ToDo] Add the model loading here
-        # Inference(--ckpt      model path, 
-        #           --bt        boxes_and_transcripts path, 
+        # Inference(--ckpt      model filename path, 
+        #           --bt        boxes_and_transcripts folder path, 
         #           --impt      image_path, 
         #           --bs        batch_size, 
         #           --output_path,
-        #           --config_file)   
+        #           --config_file)
+        # Initial parameters -- can be changed from UI
         self.inference = Inference(self.model,
-				   checkpoint_path='./',
-				   bt_path='./',
-				   impt_path='./',
-                                   #checkpoint_path='/mnt/data_drive/CSU_PhD/research/software/DocumentEngineering/DocumentLabeler_FinalDev/models/pick/saved/PICK-default/models/SROIE_test_0521_015255/model_best.pth',
-                                   #bt_path='/mnt/data/Data-Document/GeneralDocument/SROIE_PICK/boxes_and_transcripts',
-                                   #impt_path='/mnt/data/Data-Document/GeneralDocument/SROIE_PICK/images',
+				                   checkpoint_path='./',
+				                   bt_path='./',
+				                   impt_path='./',
                                    batch_size=2,
-                                   #output_path='/mnt/data_drive/CSU_PhD/research/software/DocumentEngineering/DocumentLabeler_FinalDev/output',
-                                   #config_file='/mnt/data_drive/CSU_PhD/research/software/DocumentEngineering/DocumentLabeler_FinalDev/models/configs/pick/pick_config.yaml')
-				   output_path='/home/ubuntu/csu_phd/research/software/ACM_DocEng2024/DocumentLabeler/output',
-				   config_file='/home/ubuntu/csu_phd/research/software/ACM_DocEng2024/DocumentLabeler/models/configs/pick/pick_config.yaml')
-        # self.ocr = PaddleOCR(use_pdserving=False,
-        #                      use_angle_cls=True,
-        #                      det=True,
-        #                      cls=True,
-        #                      use_gpu=gpu,
-        #                      lang=lang,
-        #                      show_log=False)
-        # self.table_ocr = PPStructure(use_pdserving=False,
-        #                              use_gpu=gpu,
-        #                              lang=lang,
-        #                              layout=False,
-        #                              show_log=False)
-
-        # if os.path.exists('./data/paddle.png'):
-        #     result = self.ocr.ocr('./data/paddle.png', cls=True, det=True)
-        #     result = self.table_ocr('./data/paddle.png', return_ocr_result_in_table=True)
+				                   output_path='./DocumentLabeler_/output',
+				                   config_file='./DocumentLabeler_/models/configs/pick/pick_config.yaml')
 
         #  ================== File List (left) ==================
         filelistLayout = QVBoxLayout()
@@ -252,18 +244,17 @@ class MainWindow(QMainWindow):
             self.keyListDock.setFeatures(QDockWidget.NoDockWidgetFeatures)
             filelistLayout.addWidget(self.keyListDock)
 
-        self.AutoRecognition = QToolButton()
-        self.AutoRecognition.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.AutoRecognition.setIcon(newIcon('Auto'))
+        self.AutoLabel = QToolButton()
+        self.AutoLabel.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.AutoLabel.setIcon(newIcon('Auto'))
 
-        autoRecLayout = QHBoxLayout()
-        autoRecLayout.setContentsMargins(0, 0, 0, 0)
-        autoRecLayout.addWidget(self.AutoRecognition)
+        autoLabLayout = QHBoxLayout()
+        autoLabLayout.setContentsMargins(0, 0, 0, 0)
+        autoLabLayout.addWidget(self.AutoLabel)
 
-        autoRecContainer = QWidget()
-        autoRecContainer.setLayout(autoRecLayout)
-        filelistLayout.addWidget(autoRecContainer)
-        
+        autoLabContainer = QWidget()
+        autoLabContainer.setLayout(autoLabLayout)
+        filelistLayout.addWidget(autoLabContainer)
         #  ================== Right Area  ==================
         listLayout = QVBoxLayout()
         listLayout.setContentsMargins(0, 0, 0, 0)
@@ -318,12 +309,11 @@ class MainWindow(QMainWindow):
 
         rightTopToolBoxContainer = QWidget()
         rightTopToolBoxContainer.setLayout(rightTopToolBox)
-        listLayout.addWidget(rightTopToolBoxContainer)
-        
+        listLayout.addWidget(rightTopToolBoxContainer) 
         #  ================== OCR Text List  ==================
         textIndexListlBox = QHBoxLayout()
 
-        # Create and add a widget for showing current label item index
+        # Create and add a widget for showing current transcript (text) item and its index
         self.indexList = QListWidget()
         self.indexList.setMaximumSize(30, 16777215)                         # limit max width
         self.indexList.setEditTriggers(QAbstractItemView.NoEditTriggers)    # no editable
@@ -397,7 +387,7 @@ class MainWindow(QMainWindow):
         leftbtmtoolboxcontainer = QWidget()
         leftbtmtoolboxcontainer.setLayout(leftbtmtoolbox)
         listLayout.addWidget(leftbtmtoolboxcontainer)
-        self.dock = QDockWidget(getStr('boxText'), self)   # CHanged it to empty in string
+        self.dock = QDockWidget(getStr('boxText'), self)   # Changed it to empty in string
         self.dock.setObjectName(getStr('labels'))
         self.dock.setWidget(textListContainer)
 
@@ -473,7 +463,7 @@ class MainWindow(QMainWindow):
         self.nextButton.setIconSize(QSize(40, 100))
         self.nextButton.setStyleSheet('border: none;')
         self.nextButton.clicked.connect(self.openNextImg)
-        self.nextButton.setShortcut('d')
+        self.nextButton.setShortcut('s')
 
         hlayout.addWidget(self.preButton)
         hlayout.addWidget(self.iconlist)
@@ -580,7 +570,7 @@ class MainWindow(QMainWindow):
                         enabled=False)
         delete = action(getStr('delBox'), 
                         self.deleteSelectedShape,
-                        'backspace', 'delete', 
+                        'd', 'delete', 
                         getStr('delBoxDetail'), 
                         enabled=False)
         copy = action(getStr('dupBox'), 
@@ -669,10 +659,10 @@ class MainWindow(QMainWindow):
                       getStr('editLabelDetail'), 
                       enabled=False)
 
-        AutoRec = action(getStr('autoRecognition'), 
-                         self.autoRecognition,
-                         '', 'Auto', 
-                         getStr('autoRecognition'), 
+        AutoLab = action(getStr('autoLabel'),
+                         self.autoLabel,
+                         '', 'Auto',
+                         getStr('autoLabel'),
                          enabled=False)
 
         reRec = action(getStr('reRecognition'), 
@@ -798,17 +788,15 @@ class MainWindow(QMainWindow):
         # Button
         self.editButton.setDefaultAction(edit)
         self.newButton.setDefaultAction(create)
-        self.labelGroupButton.setDefaultAction(labelgroup)   ## Added by HSB
-        self.deleteGroupButton.setDefaultAction(deletegroup) ## Added by HSB
-        self.mergeGroupButton.setDefaultAction(mergegroup)   ## Added by HSB
+        self.labelGroupButton.setDefaultAction(labelgroup)   
+        self.deleteGroupButton.setDefaultAction(deletegroup) 
+        self.mergeGroupButton.setDefaultAction(mergegroup)   
         self.createpolyButton.setDefaultAction(createpoly)
         self.DelButton.setDefaultAction(deleteImg)
         self.SaveButton.setDefaultAction(save)
-        self.AutoRecognition.setDefaultAction(AutoRec)
+        self.AutoLabel.setDefaultAction(AutoLab)
         self.reRecogButton.setDefaultAction(reRec)
         self.tableRecButton.setDefaultAction(tableRec)
-        # self.preButton.setDefaultAction(openPrevImg)
-        # self.nextButton.setDefaultAction(openNextImg)
 
         # ================== Zoom layout ==================
         zoomLayout = QHBoxLayout()
@@ -862,7 +850,9 @@ class MainWindow(QMainWindow):
         self.actions = struct(save=save, resetAll=resetAll, deleteImg=deleteImg,
                               lineColor=color1, create=create, createpoly=createpoly, tableRec=tableRec, delete=delete, 
                               edit=edit, copy=copy,
-                              saveRec=saveRec, singleRere=singleRere, AutoRec=AutoRec, reRec=reRec, cellreRec=cellreRec,
+                              saveRec=saveRec, singleRere=singleRere, 
+                              AutoLab=AutoLab,
+                              reRec=reRec, cellreRec=cellreRec,
                               createMode=createMode, labelgroup=labelgroup, deletegroup=deletegroup, mergegroup=mergegroup,
                               editMode=editMode, shapeLineColor=shapeLineColor, shapeFillColor=shapeFillColor,
                               zoom=zoom, zoomIn=zoomIn, zoomOut=zoomOut, zoomOrg=zoomOrg,
@@ -958,8 +948,9 @@ class MainWindow(QMainWindow):
                    zoomIn, zoomOut, zoomOrg, None, # None adds horizontal line
                    fitWindow, 
                    fitWidth))
-        addActions(self.menus.autolabel, 
-                  (AutoRec, 
+        addActions(self.menus.autolabel,
+                   (AutoLab, 
+                #   (AutoRec, 
                    reRec, 
                    cellreRec, 
                    alcm, 
@@ -1163,7 +1154,8 @@ class MainWindow(QMainWindow):
     # Merge the bounding boxes of the selected labels that intersect with the created rectangle
     def mergeGroup(self):
         assert self.beginner()
-        print("Merging group.")
+        if self.debug_mode:
+            logger.info("Merging group.")
         self.canvas.setEditing(True)
         self.mergeSelectedShapes()                      # Deleting the selected shape
         self.actions.mergegroup.setEnabled(True)        # Disabling the labelgroup button
@@ -1171,7 +1163,8 @@ class MainWindow(QMainWindow):
     # Delete existing labels that intersect with the created rectangle
     def deleteGroup(self):
         assert self.beginner()
-        print("Delete group.")
+        if self.debug_mode:
+            logger.info("Delete group.")
         self.canvas.setEditing(True)
         # self.canvas.deleteLabel()                    # Deleting the label from the Canvas class
         self.deleteSelectedShape(_value=True)          # Deleting the selected shape, label, idx interface between label, idx of UI and canvas functions
@@ -1229,7 +1222,8 @@ class MainWindow(QMainWindow):
         self.actions.editMode.setEnabled(not drawing)
         if not drawing and self.beginner():
             # Cancel creation.
-            print('Cancel creation.')
+            if self.debug_mode:
+                logger.info('Cancel creation.')
             self.canvas.setEditing(True)
             self.canvas.restoreCursor()
             self.actions.create.setEnabled(True)
@@ -1287,13 +1281,10 @@ class MainWindow(QMainWindow):
         shape = self.itemsToShapesbox[item]
 
         box = ast.literal_eval(item.text())
-        # print('shape in labelItemChanged is',shape.points)
+        if self.debug_mode:
+            logger.info(f'shape in labelItemChanged is {shape.points}')
         if box != [(int(p.x()), int(p.y())) for p in shape.points]:
-            # shape.points = box
             shape.points = [QPointF(p[0], p[1]) for p in box]
-
-            # QPointF(x,y)
-            # shape.line_color = generateColorByText(shape.label)
             self.setDirty()
         else:  # User probably changed item visibility
             self.canvas.setShapeVisible(shape, True)  # item.checkState() == Qt.Checked
@@ -1326,7 +1317,6 @@ class MainWindow(QMainWindow):
                     return
 
             item.setText(text)
-            # item.setBackground(generateColorByText(text))
             self.setDirty()
             self.updateComboBox()
 
@@ -1447,7 +1437,8 @@ class MainWindow(QMainWindow):
     # Remove items (text, labels, etc) connected to the selected shape that tend to remove
     def remLabels(self, shapes):
         if shapes is None:
-            print('Empty shapes.')
+            if self.debug_mode:
+                logger.info('Empty shapes.')
             return
         for shape in shapes:
             item = self.shapesToItems[shape]
@@ -1527,7 +1518,6 @@ class MainWindow(QMainWindow):
             shape.difficult = difficult
             shape.idx = shape_index
             shape_index += 1
-            # shape.locked = False
             shape.close()
             s.append(shape)
 
@@ -1559,7 +1549,6 @@ class MainWindow(QMainWindow):
         uniqueTextList.append("")
         uniqueTextList.sort()
 
-    # self.comboBox.update_items(uniqueTextList)
     def updateIndexList(self):
         self.indexList.clear()
         for i in range(self.textList.count()):
@@ -1572,7 +1561,8 @@ class MainWindow(QMainWindow):
         annotationFilePath = ustr(annotationFilePath)
 
         def format_shape(s):
-            # print('s in saveLabels is ',s)
+            if self.debug_mode:
+                logger.info(f's in saveLabels is {s}')
             return dict(label=s.label,  # str
                         line_color=s.line_color.getRgb(),
                         fill_color=s.fill_color.getRgb(),
@@ -1606,11 +1596,6 @@ class MainWindow(QMainWindow):
             self.Doclabel[annotationFilePath] = trans_dic
             if mode == 'Auto':
                 self.Cachelabel[annotationFilePath] = trans_dic
-
-            # else:
-            #     self.labelFile.save(annotationFilePath, shapes, self.filePath, self.imageData,
-            #                         self.lineColor.getRgb(), self.fillColor.getRgb())
-            # print('Image:{0} -> Annotation:{1}'.format(self.filePath, annotationFilePath))
             return True
         except:
             self.errorMessage(u'Error saving label data', u'Error saving label data')
@@ -2201,23 +2186,32 @@ class MainWindow(QMainWindow):
                 item = QListWidgetItem(closeicon, filename)
             self.fileListWidget.addItem(item)
 
-        print('DirPath in importDirImages is', dirpath)
+        if self.debug_mode:
+            logger.info(f'DirPath in importDirImages is {dirpath}')
+            logger.info('-'*100)
+
         self.iconlist.clear()
         self.additems5(dirpath)
         self.changeFileFolder = True
         self.haveAutoReced = False
-        self.AutoRecognition.setEnabled(True)
-        self.reRecogButton.setEnabled(True)
-        self.tableRecButton.setEnabled(True)
+        # self.AutoRecognition.setEnabled(True)
+        # self.reRecogButton.setEnabled(True)
+        # self.tableRecButton.setEnabled(True)
+        self.AutoLabel.setEnabled(True)
+        self.reRecogButton.setEnabled(False)
+        self.tableRecButton.setEnabled(False)
         self.labelGroupButton.setEnabled(True)
         self.deleteGroupButton.setEnabled(True)
         self.mergeGroupButton.setEnabled(True)
-        self.actions.AutoRec.setEnabled(True)
-        self.actions.reRec.setEnabled(True)
+        # self.actions.AutoRec.setEnabled(True)
+        # self.actions.reRec.setEnabled(True)
+        self.actions.AutoLab.setEnabled(True)
+        self.actions.reRec.setEnabled(False)
         self.actions.labelgroup.setEnabled(True)
         self.actions.deletegroup.setEnabled(True)
         self.actions.mergegroup.setEnabled(True)
-        self.actions.tableRec.setEnabled(True)
+        # self.actions.tableRec.setEnabled(True)
+        self.actions.tableRec.setEnabled(False)
         self.actions.deleteImg.setEnabled(True)
         self.sideMenu.setEnabled(True)
         self.actions.rotateLeft.setEnabled(True)
@@ -2850,25 +2844,13 @@ class MainWindow(QMainWindow):
         # Update menu of key list
         if len(self.existed_key_cls_set) > 0:
             for key_text in self.existed_key_cls_set:
-                print('key_text in init_label_list is ', key_text)
+                if self.debug_mode:
+                    logger.info(f'key_text in init_label_list is {key_text}')
                 if not self.keyList.findItemsByLabel(key_text):
                     item = self.keyList.createItemFromLabel(key_text)
                     self.keyList.addItem(item)
                     rgb = self._get_rgb_by_label(key_text, self.kie_mode)
                     self.keyList.setItemLabel(item, key_text, rgb)
-
-        # if self.keyDialog is None:
-        #     # key list dialog
-        #     self.keyDialog = KeyDialog(
-        #         text=self.key_dialog_tip,
-        #         parent=self,
-        #         labels=self.existed_key_cls_set,
-        #         sort_labels=True,
-        #         show_text_field=True,
-        #         completion="startswith",
-        #         fit_to_content={'column': True, 'row': False},
-        #         flags=None
-        #     )
 
     def init_key_list(self, keyListItems):
         if not self.kie_mode:
@@ -2932,7 +2914,8 @@ class MainWindow(QMainWindow):
             else:
                 self.mImgList5 = self.indexTo5Files(currIndex)
         if filename:
-            print('file name in openNext is ', filename)
+            if self.debug_mode:
+                logger.info(f'filename in openNextImg is {filename}')
             self.loadFile(filename)
 
     def updateFileListIcon(self, filename):
@@ -3236,25 +3219,81 @@ class MainWindow(QMainWindow):
         filepathsplit = filePath.split(spliter)[-2:]
         return filepathsplit[0] + '/' + filepathsplit[1]
 
-    def autoRecognition(self):
+    def autoLabel(self):
         assert self.mImgList is not None
         print('Using model from ', self.model)
 
-        uncheckedList = [i for i in self.mImgList if i not in self.fileStatedict.keys()]
-        self.autoDialog = AutoDialog(parent=self, 
-                                     ocr=self.ocr, 
-                                     mImgList=uncheckedList, 
-                                     lenbar=len(uncheckedList))
-        self.autoDialog.popUp()
-        self.currIndex = len(self.mImgList) - 1
-        self.loadFile(self.filePath)  # ADD
-        self.haveAutoReced = True
-        self.AutoRecognition.setEnabled(False)
-        self.actions.AutoRec.setEnabled(False)
+        self.AutoLabel.setEnabled(False)
+        self.actions.AutoLab.setEnabled(False)
+
+        # Extract page content
+        page_content = self.extractPageContent()
+        if page_content is None:
+            print("No content to process.")
+            return
+
+        # Check the extracted content if in debug mode
+        if self.debug_mode:
+            self.checkPageContent(page_content)
+
+        # Perform inference on the current image
+        if hasattr(self, 'inference'):
+            image_path = page_content['image_path']
+            boxes_and_transcripts = [(obj['coordinates'], obj['text']) for obj in page_content['objects']]
+            
+            results = self.inference.infer_single_image(image_path, boxes_and_transcripts)
+            self.updateLabelsWithInferenceResults(results)
+        else:
+            print("Inference model not initialized.")
+
         self.setDirty()
         self.saveCacheLabel()
 
         self.init_key_list(self.Cachelabel)
+
+    def processExtractedContent(self, page_content):
+        image_path = page_content["image_path"]
+        image = page_content["image"]
+        objects = page_content["objects"]
+
+        print(f"Processing content from {image_path}")
+        print(f"Found {len(objects)} text objects")
+
+        if self.debug_mode:
+            print("Debug: Detailed object information:")
+            for obj in objects:
+                print(f"Text: {obj['text']}")
+                print(f"Coordinates: {obj['coordinates']}")
+                print(f"Key Class:{obj['key_cls']}")
+                print("---")
+        
+        if hasattr(self, 'inference'):
+            results = self.inference.perform_inference(image, objects)
+            self.updateLabelsWithInferenceResults(results)
+        else:
+            print("Inference model not initialized.")
+        
+        # You might want to save this information
+        self.saveExtractedContent(page_content)
+
+        if self.debug_mode:
+            print("Debug: Content processing completed.")
+
+    def addLabel(self, shape):
+        item = HashableQListWidgetItem(shape.label)
+        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+        item.setCheckState(Qt.Checked)
+        self.itemsToShapes[item] = shape
+        self.shapesToItems[shape] = item
+        self.textList.addItem(item)
+        for action in self.actions.onShapesPresent:
+            action.setEnabled(True)
+
+    def setShapeToListWidget(self, shape):
+        item = QListWidgetItem(shape.label)
+        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+        item.setCheckState(Qt.Checked)
+        return item
 
     def reRecognition(self):
         img = cv2.imdecode(np.fromfile(self.filePath,dtype=np.uint8),1)
@@ -3525,6 +3564,7 @@ class MainWindow(QMainWindow):
     def autolcm(self):
         vbox = QVBoxLayout()
         hbox = QHBoxLayout()
+        self.form_layout = QFormLayout()
 
         self.panel = QLabel()
         self.panel.setText(self.stringBundle.getString('chooseModel'))
@@ -3536,13 +3576,65 @@ class MainWindow(QMainWindow):
                                 'PICK/Token Label',
                                 'DeepKE/Token Label',
                                 'LiLT/Token Label'])
-        
+
+        # Add checkbox for using config file
+        self.use_config_checkbox = QCheckBox("Use Config File")
+        self.use_config_checkbox.setChecked(False)
+        self.use_config_checkbox.stateChanged.connect(self.update_config_visibility)
+        self.form_layout.addRow("Use Config File:", self.use_config_checkbox)
+
+        # Add text box for config file path
+        self.config_file_path = QLineEdit()
+        self.config_file_path.setPlaceholderText("Enter config file path")
+        self.config_file_path.setEnabled(False)  # Initially disabled (grayed out)
+        self.config_file_path.textChanged.connect(self.check_ok_button_state)
+        self.form_layout.addRow("Config File Path:", self.config_file_path)
+
+        # Add text inputs for inference arguments
+        self.checkpoint_path = QLineEdit()
+        self.bt_path = QLineEdit()
+        self.impt_path = QLineEdit()
+        self.batch_size = QLineEdit()
+        self.output_path = QLineEdit()
+        self.num_workers = QLineEdit()
+
+        self.form_layout.addRow("Checkpoint Path:", self.checkpoint_path)
+        self.form_layout.addRow("BT Path:", self.bt_path)
+        self.form_layout.addRow("Image Path:", self.impt_path)
+        self.form_layout.addRow("Batch Size:", self.batch_size)
+        self.form_layout.addRow("Output Path:", self.output_path)
+        self.form_layout.addRow("Num Workers:", self.num_workers)
+
+        # Add checkbox for multi-GPU
+        self.multi_gpu_checkbox = QCheckBox("Enable Multi-GPU")
+        self.form_layout.addRow("Multi-GPU:", self.multi_gpu_checkbox)
+
+        # Add checkbox for using CPU
+        self.use_cpu_checkbox = QCheckBox("Use CPU")
+        self.use_cpu_checkbox.setChecked(False)
+        self.use_cpu_checkbox.stateChanged.connect(self.update_cpu_visibility)
+        self.form_layout.addRow("Use CPU:", self.use_cpu_checkbox)
+
+        # Add checkbox for labeling only current page
+        self.label_current_page_checkbox = QCheckBox("Label current page")
+        self.form_layout.addRow("Label current page:", self.label_current_page_checkbox)
+
+        # Create a widget to hold the form layout
+        self.form_widget = QWidget()
+        self.form_widget.setLayout(self.form_layout)
+        self.form_widget.setVisible(False)  # Initially hidden
+
         vbox.addWidget(self.panel)
         vbox.addWidget(self.comboBox)
+        vbox.addWidget(self.form_widget)
 
-        self.dialog = QDialog()
+        # Connect the comboBox to update form visibility
+        self.comboBox.currentTextChanged.connect(self.update_form_visibility)
+
+        self.dialog = QDialog(self)  # Pass the main window as parent
         self.dialog.resize(300, 100)
         self.okBtn = QPushButton(self.stringBundle.getString('ok'))
+        self.okBtn.setEnabled(False)  # Initially disabled
         self.cancelBtn = QPushButton(self.stringBundle.getString('cancel'))
 
         self.okBtn.clicked.connect(self.modelChoose)
@@ -3559,35 +3651,616 @@ class MainWindow(QMainWindow):
         self.dialog.exec_()
 
         if self.filePath:
-            self.AutoRecognition.setEnabled(True)
-            self.actions.AutoRec.setEnabled(True)
+            self.AutoLabel.setEnabled(True)
+            self.actions.AutoLab.setEnabled(True)
+
+    def check_ok_button_state(self):
+        # Enable the OK button if the config file path is not empty
+        self.okBtn.setEnabled(bool(self.config_file_path.text().strip()))
+
+    def update_config_visibility(self):
+        if self.use_config_checkbox.isChecked():
+            self.config_file_path.setEnabled(True)
+            self.checkpoint_path.setEnabled(False)
+            self.bt_path.setEnabled(False)
+            self.impt_path.setEnabled(False)
+            self.batch_size.setEnabled(False)
+            self.output_path.setEnabled(False)
+            self.num_workers.setEnabled(False)
+        else:
+            self.config_file_path.setEnabled(False)
+            self.checkpoint_path.setEnabled(True)
+            self.bt_path.setEnabled(True)
+            self.impt_path.setEnabled(True)
+            self.batch_size.setEnabled(True)
+            self.output_path.setEnabled(True)
+            self.num_workers.setEnabled(True)
+
+    def update_form_visibility(self, text):
+        self.form_widget.setVisible(text == 'PICK/Token Label')
+
+    def update_cpu_visibility(self):
+        self.multi_gpu_checkbox.setEnabled(not self.use_cpu_checkbox.isChecked())
 
     def modelChoose(self):
-        
         print(self.comboBox.currentText())
-        lg_idx = {'PyTesseract/OCR-en': 'pytesseract_en',
-                  'PICK/Token Label': 'pick',
-                  'DeepKE/Token Label': 'deepke',
-                  'LiLT/Token Label': 'lilt'}    
-        # [ToDo] We need to pass the selected inference into the modelRunner
+        lg_idx = {
+            'PyTesseract/OCR-en': 'pytesseract_en',
+            'PICK/Token Label': 'pick',
+            'DeepKE/Token Label': 'deepke',
+            'LiLT/Token Label': 'lilt'
+        }
+        
         self.model = lg_idx[self.comboBox.currentText()]
 
-        del self.inference
-        # Inference(--ckpt      model path, 
-        #           --bt        boxes_and_transcripts path, 
-        #           --impt      image_path, 
-        #           --bs        batch_size, 
-        #           --output_path)
-        self.inference = Inference(self.model,
-                                   checkpoint_path='/mnt/data_drive/CSU_PhD/research/software/DocumentEngineering/DocumentLabeler_FinalDev/models/pick/saved/PICK_default/models/SROIE_test_0521_015255/checkpoint-epoch100.pth',
-                                   bt_path='/mnt/data/Data-Document/GeneralDocument/SROIE_PICK/boxes_and_transcripts',
-                                   impt_path='/mnt/data/Data-Document/GeneralDocument/SROIE_PICK/images',
-                                   batch_size=2,
-                                   output_path='/mnt/data_drive/CSU_PhD/research/software/DocumentEngineering/DocumentLabeler_FinalDev/DocumentLabeler/output',
-                                   config_file='/mnt/data_drive/CSU_PhD/research/software/DocumentEngineering/DocumentLabeler_FinalDev/models/configs/pick/pick_config.yaml',
-                                   num_workers=2)
-        self.inference.perform_inference()
+        # Clean up the previous inference object if it exists
+        if hasattr(self, 'inference'):
+            del self.inference
+
+        multi_gpu = self.multi_gpu_checkbox.isChecked()
+        use_cpu = self.use_cpu_checkbox.isChecked()
+
+        # Helper function to safely convert to int with a default value
+        def safe_int(value, default=2):
+            try:
+                return int(value) if value.strip() else default
+            except ValueError:
+                return default
+
+        common_params = {
+            'model_selection': self.model,  # Pass the selected model to Inference
+            'checkpoint_path': self.checkpoint_path.text(),
+            'bt_path': self.bt_path.text(),
+            'impt_path': self.impt_path.text(),
+            'output_path': self.output_path.text(),
+            'num_workers': safe_int(self.num_workers.text()),
+            'batch_size': safe_int(self.batch_size.text(), default=16),
+            'multi_gpu': multi_gpu,
+            'use_cpu': use_cpu,
+            'debug_mode': self.debug_mode  # Pass debug_mode to Inference
+        }
+
+        if self.model == 'pick':
+            if self.use_config_checkbox.isChecked():
+                config_file_path = self.config_file_path.text()
+                logger.info(f"Using config file: {config_file_path}")
+                self.inference = Inference(
+                    **common_params,
+                    bs=None,  # Let the config file determine the batch size
+                    config_file=config_file_path
+                )
+            else:
+                self.inference = Inference(
+                    **common_params,
+                    bs=safe_int(self.batch_size.text(), default=16)
+                )
+        else:
+            # Initialize Inference for other models
+            self.inference = Inference(self.model, **common_params)
+
+        if self.label_current_page_checkbox.isChecked():
+            self.labelCurrentPage()
+        else:
+            # Perform inference based on the user's selection
+            self.inference.perform_inference()
+
         self.dialog.close()
+
+        # Extract page content
+        # page_content = self.extractPageContent()
+        # if page_content is None:
+        #     print("No content to process.")
+        #     return
+
+        # Check the extracted content if in debug mode
+        # if self.debug_mode:
+        #     pass  # In case you want to check the progress up to here
+            # self.checkPageContent(page_content)
+
+    def extractPageContent(self):
+        if self.filePath is None or not os.path.exists(self.filePath):
+            print("No image loaded.")
+            return None
+
+        # Extract image
+        image = cv2.imread(self.filePath)
+
+        # Extract text and coordinates
+        text_and_coords = []
+        for shape in self.canvas.shapes:
+            text = shape.label
+            coords = [(int(p.x()), int(p.y())) for p in shape.points]
+            text_and_coords.append({
+                "text": text,
+                "coordinates": coords,
+                "key_cls": shape.key_cls if hasattr(shape, 'key_cls') else None
+            })
+        
+        return{
+            "image_path": self.filePath,
+            "image": image,
+            "objects": text_and_coords
+        }
+    
+    def checkPageContent(self, page_content):
+        if page_content is None:
+            print("No page content available.")
+            return
+
+        print("\n=== Page Content Summary ===")
+        print(f"Image Path: {page_content['image_path']}")
+        print(f"Image Shape: {page_content['image'].shape}")
+        print(f"Number of Objects: {len(page_content['objects'])}")
+
+        for i, obj in enumerate(page_content['objects'], 1):
+            print(f"\nObject {i}:")
+            print(f"  Text: {obj['text']}")
+            print(f"  Coordinates: {obj['coordinates']}")
+            print(f"  Key Class: {obj['key_cls']}")
+
+        # Optional: Display the image with bounding boxes
+        self.displayImageWithBoxes(page_content)
+
+    def displayImageContent(self, page_content):
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as patches
+
+        img = page_content['image']
+        fig, ax = plt.subplots(1)
+        ax.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+
+        for obj in page_content['objects']:
+            coords = obj['coordinates']
+            rect = patches.Rectangle((coords[0][0], coords[0][1]), 
+                                    coords[2][0] - coords[0][0], 
+                                    coords[2][1] - coords[0][1], 
+                                    linewidth=1, edgecolor='r', facecolor='none')
+            ax.add_patch(rect)
+            ax.text(coords[0][0], coords[0][1], obj['text'], color='r')
+
+        plt.show()
+
+    def displayImageWithBoxes(self, page_content, entities=None):
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as patches
+        import cv2
+
+        img = page_content['image']
+        fig, ax = plt.subplots(1)
+        ax.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+
+        # Draw original objects in red
+        for obj in page_content['objects']:
+            coords = obj['coordinates']
+            rect = patches.Rectangle((coords[0][0], coords[0][1]), 
+                                    coords[2][0] - coords[0][0], 
+                                    coords[2][1] - coords[0][1], 
+                                    linewidth=1, edgecolor='r', facecolor='none')
+            ax.add_patch(rect)
+            ax.text(coords[0][0], coords[0][1], obj['text'], color='r')
+
+        # Draw inference results in blue if entities are provided
+        if entities is not None:
+            if self.debug_mode:
+                logger.info(f"Entity size: {len(entities)}")
+            for entity in entities:
+                coords = entity['position']
+                rect = patches.Rectangle((coords[0][0], coords[0][1]), 
+                                        coords[2][0] - coords[0][0], 
+                                        coords[2][1] - coords[0][1], 
+                                        linewidth=1, edgecolor='b', facecolor='none')
+                ax.add_patch(rect)
+                ax.text(coords[0][0], coords[0][1], entity['text'], color='b')
+
+        plt.show()
+
+    def prepare_current_image_data(self):
+        current_image_path = self.filePath
+        # Extract boxes and transcripts from self.canvas.shapes
+        boxes_and_transcripts = [
+            (shape.points, shape.label) for shape in self.canvas.shapes
+        ]
+        return current_image_path, boxes_and_transcripts
+
+    # Note: we trigger current page labeling from here so that we can update the UI directly based on the result.
+    # def labelCurrentPage(self):
+    #     if not hasattr(self,'inference'):
+    #         print("Inference model not initialized.")
+    #         return
+        
+    #     # Extract page content
+    #     page_content = self.extractPageContent()
+    #     if page_content is None:
+    #         print("No content to process.")
+    #         return
+        
+    #     # Check the extracted content if in debug mode
+    #     if self.debug_mode:
+    #         pass
+    #         self.checkPageContent(page_content)
+        
+    #     # Perform inference on the current image
+    #     image_path = page_content['image_path']
+    #     boxes_and_transcripts = [(obj['coordinates'], obj['text']) for obj in page_content['objects']]
+
+    #     results = self.inference.infer_single_image(image_path, boxes_and_transcripts)
+    #     self.updateLabelsWithInferenceResults(results)
+
+    #     self.setDirty()
+    #     self.saveCacheLabel()
+
+    #     self.init_key_list(self.Cachelabel)
+    
+    # def updateLabelsWithInferenceResults(self, results):
+        # Clear existing shapes
+        self.canvas.shapes.clear()
+        self.canvas.update()
+
+        for entity in results:
+            print('entity: ', entity['entity_name'], 'text: ', entity['text'])
+            # Create a new shape for each entity
+            shape = Shape(label=entity['entity_name'])
+            
+            # Set shape color (you might want to have a color scheme based on entity types)
+            shape.line_color = QColor(255, 0, 0)  # Red for example
+            shape.fill_color = QColor(255, 0, 0, 128)  # Semi-transparent red
+            
+            # Find coordinates for the entity text
+            coordinates = self.findCoordinatesForText(entity['text'])
+            
+            if coordinates:
+                for point in coordinates:
+                    shape.addPoint(QPointF(point[0], point[1]))
+                
+                shape.close()
+                
+                # Add the shape to the canvas
+                self.canvas.shapes.append(shape)
+                self.addLabel(shape)
+            else:
+                print(f"Could not find coordinates for entity: {entity['entity_name']} - {entity['text']}")
+
+        # Update the canvas
+        self.canvas.update()
+        self.setDirty()
+
+    def labelCurrentPage(self):
+        if not hasattr(self, 'inference'):
+            print("Inference model not initialized.")
+            return
+        
+        # Extract page content
+        page_content = self.extractPageContent()
+        if page_content is None:
+            print("No content to process.")
+            return
+        
+        # Check the extracted content if in debug mode
+        if self.debug_mode:
+            self.checkPageContent(page_content)
+        
+        # Perform inference on the current image
+        image_path = page_content['image_path']
+        boxes_and_transcripts = [(obj['coordinates'], obj['text']) for obj in page_content['objects']]
+
+        results = self.inference.infer_single_image(image_path, boxes_and_transcripts)
+
+        # Display the image with the original objects and inference results if in debug mode
+        if self.debug_mode:
+            # Prepare entities with positions to display
+            entities = []
+            for result in results:
+                entity = {
+                    'entity_name': result['entity_name'], 
+                    'text': result['text'], 
+                    'position': result['position']
+                }
+                entities.append(entity)
+
+            # Overlay inference results on the image
+            self.displayImageWithBoxes(page_content, entities)
+        
+        # Update UI with inference results
+        self.updateLabelsWithInferenceResults(results)
+
+        self.setDirty()
+        self.saveCacheLabel()
+        self.init_key_list(self.Cachelabel)
+
+    def addText(self, shape, idx=None):
+        # If idx is not provided, use the current count of items
+        if idx is None:
+            idx = self.textList.count() + 1
+        # Add to textList
+        text_item = HashableQListWidgetItem(shape.label)
+        self.textList.addItem(text_item)
+        self.itemsToShapes[text_item] = shape
+        self.shapesToItems[shape] = text_item
+
+        # Add to indexList
+        index_item = QListWidgetItem(str(idx))
+        index_item.setTextAlignment(Qt.AlignHCenter)
+        self.indexList.addItem(index_item)
+
+        # Add to BoxList
+        box_text = str([(int(p.x()), int(p.y())) for p in shape.points])
+        box_item = HashableQListWidgetItem(box_text)
+        self.BoxList.addItem(box_item)
+        self.itemsToShapesbox[box_item] = shape
+        self.shapesToItemsbox[shape] = box_item
+
+        # Update the canvas
+        self.canvas.shapes.append(shape)
+
+        # Enable actions
+        for action in self.actions.onShapesPresent:
+            action.setEnabled(True)
+
+        # Update window titles
+        self.BoxListDock.setWindowTitle(self.BoxListDockName + f" ({self.BoxList.count()})")
+        self.textListDock.setWindowTitle(self.textListDockName + f" ({self.textList.count()})")
+        if self.debug_mode:
+            logger.info(f"Added text: {shape.label}")
+            logger.info(f"Current member of shapes: {len(self.canvas.shapes)}")
+            logger.info(f"Current number of text items {self.textList.count()}")
+            logger.info(f"Current number of index items: {self.indexList.count()}")
+            logger.info(f"Current number of box items: {self.BoxList.count()}")
+
+    def setShapeToListWidget(self, shape):
+        item = QListWidgetItem(shape.label)
+        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+        item.setCheckState(Qt.Checked)
+        return item
+
+    def updateLabelsWithInferenceResults(self, results):
+        if self.debug_mode:
+            logger.info("Starting to update labels with inference results")
+            logger.info(f"Initial number of shapes: {len(self.canvas.shapes)}")
+
+        matched_results, unmatched_shapes = self.matchInferenceResultsToShapes(results)
+
+        for result, shape in matched_results:
+            if shape:
+                # Update existing shape
+                old_key_cls = shape.key_cls
+                shape.key_cls = result['entity_name']
+                shape.label = result['text']
+
+                # Update shape position
+                shape.points = [QPointF(x, y) for x, y in result['position']]
+
+                if self.debug_mode:
+                    logger.info(f"Updating existing shape: {shape.label}")
+                    logger.info(f"Old key_cls: {old_key_cls}, New key_cls: {shape.key_cls}")
+
+                self.updateShapeLabel(shape)
+            else:
+                # Create new shape
+                new_shape = Shape(label=result['text'], key_cls=result['entity_name'])
+                for point in result['position']:
+                    new_shape.addPoint(QPointF(point[0], point[1]))
+                new_shape.close()
+
+                if self.debug_mode:
+                    logger.info(f"Adding new shape: {result['text']}")
+
+                self.addLabel(new_shape)
+
+        # Remove shapes that weren't matched to any result
+        for shape in unmatched_shapes:
+            if self.debug_mode:
+                logger.info(f"Removing unmatched shape: {shape.label}")
+            self.remLabels([shape])
+
+        self.canvas.update()
+        self.setDirty()
+
+        if self.debug_mode:
+            logger.info("Finished updating labels")
+            logger.info(f"Final number of shapes: {len(self.canvas.shapes)}")
+
+    def matchInferenceResultsToShapes(self, results):
+        def calculate_iou(box1, box2):
+            # Ensure both boxes are in the format [(x1, y1), (x2, y2), (x3, y3), (x4, y4)]
+            if len(box1) != 4 or len(box2) != 4:
+                logger.error(f"Invalid box format. Box1: {box1}, Box2: {box2}")
+                return 0.0
+
+            # Calculate the intersection rectangle
+            x_left = max(min(p[0] for p in box1), min(p[0] for p in box2))
+            y_top = max(min(p[1] for p in box1), min(p[1] for p in box2))
+            x_right = min(max(p[0] for p in box1), max(p[0] for p in box2))
+            y_bottom = min(max(p[1] for p in box1), max(p[1] for p in box2))
+
+            if x_right < x_left or y_bottom < y_top:
+                return 0.0
+
+            # Calculate area of intersection
+            intersection_area = (x_right - x_left) * (y_bottom - y_top)
+
+            # Calculate area of both boxes
+            box1_area = (max(p[0] for p in box1) - min(p[0] for p in box1)) * (max(p[1] for p in box1) - min(p[1] for p in box1))
+            box2_area = (max(p[0] for p in box2) - min(p[0] for p in box2)) * (max(p[1] for p in box2) - min(p[1] for p in box2))
+
+            # Calculate IoU
+            iou = intersection_area / float(box1_area + box2_area - intersection_area)
+            return iou
+
+        matched_results = []
+        unmatched_shapes = self.canvas.shapes.copy()
+
+        for result in results:
+            best_match = None
+            best_iou = 0
+            result_box = result['position']
+            
+            logger.debug(f"Processing result: {result}")
+
+            for shape in unmatched_shapes:
+                shape_box = [(p.x(), p.y()) for p in shape.points]
+                
+                logger.debug(f"Comparing with shape: {shape.label}")
+                logger.debug(f"Result box: {result_box}")
+                logger.debug(f"Shape box: {shape_box}")
+
+                try:
+                    iou = calculate_iou(result_box, shape_box)
+                    logger.debug(f"Calculated IoU: {iou}")
+                    
+                    if iou > best_iou:
+                        best_iou = iou
+                        best_match = shape
+                except Exception as e:
+                    logger.error(f"Error calculating IoU: {e}")
+                    continue
+
+            if best_match and best_iou > 0.5:  # You can adjust this threshold
+                logger.debug(f"Matched result {result['text']} to shape {best_match.label} with IoU {best_iou}")
+                matched_results.append((result, best_match))
+                unmatched_shapes.remove(best_match)
+            else:
+                logger.debug(f"No match found for result {result['text']}")
+                matched_results.append((result, None))  # New shape to be created
+
+        logger.debug(f"Matched results: {[(r['text'], s.label if s else None) for r, s in matched_results]}")
+        logger.debug(f"Unmatched shapes: {[s.label for s in unmatched_shapes]}")
+        return matched_results, unmatched_shapes
+
+    def calculate_iou(box1, box2):
+        def get_box_coordinates(box):
+            if isinstance(box[0], (int, float)):  # [x1, y1, x2, y2] format
+                return box[0], box[1], box[2], box[3]
+            elif isinstance(box[0], tuple):  # [(x1, y1), (x2, y2), ...] format
+                x_coords, y_coords = zip(*box)
+                return min(x_coords), min(y_coords), max(x_coords), max(y_coords)
+            else:
+                raise ValueError(f"Unsupported box format: {box}")
+
+        x1_1, y1_1, x2_1, y2_1 = get_box_coordinates(box1)
+        x1_2, y1_2, x2_2, y2_2 = get_box_coordinates(box2)
+
+        # Calculate intersection
+        x1_i = max(x1_1, x1_2)
+        y1_i = max(y1_1, y1_2)
+        x2_i = min(x2_1, x2_2)
+        y2_i = min(y2_1, y2_2)
+
+        if x2_i < x1_i or y2_i < y1_i:
+            return 0.0
+
+        intersection_area = (x2_i - x1_i) * (y2_i - y1_i)
+
+        # Calculate union
+        box1_area = (x2_1 - x1_1) * (y2_1 - y1_1)
+        box2_area = (x2_2 - x1_2) * (y2_2 - y1_2)
+        union_area = box1_area + box2_area - intersection_area
+
+        if union_area == 0:
+            return 0.0
+
+        return intersection_area / union_area
+
+    def updateShapeLabel(self, shape):
+        # Update the label in the UI
+        item = self.shapesToItems.get(shape)
+        if item:
+            item.setText(shape.label)
+            self.textList.update()
+
+        # Update the key_cls if needed
+        # This might involve updating color or other properties
+
+        # Update BoxList if needed
+        box_item = self.shapesToItemsbox.get(shape)
+        if box_item:
+            box_item.setText(str([(int(p.x()), int(p.y())) for p in shape.points]))
+            self.BoxList.update()
+
+    def findCoordinatesForText(self, text):
+        # First, check the textList
+        for index in range(self.textList.count()):
+            item = self.textList.item(index)
+            if item.text().strip() == text.strip():
+                # Get the corresponding shape
+                shape = self.itemsToShapes.get(item)
+                if shape:
+                    return [(int(point.x()), int(point.y())) for point in shape.points]
+
+        # If not found in textList, check canvas shapes
+        for shape in self.canvas.shapes:
+            if shape.label.strip() == text.strip():
+                return [(int(point.x()), int(point.y())) for point in shape.points]
+
+        # If still not found, check BoxList
+        for index in range(self.BoxList.count()):
+            item = self.BoxList.item(index)
+            box_text = item.text()
+            try:
+                box_coords = ast.literal_eval(box_text)
+                if isinstance(box_coords, list) and len(box_coords) == 4:
+                    return box_coords
+            except:
+                pass  # If we can't parse the box text, just continue
+
+        # If still not found, check Doclabel
+        current_image_key = self.getImglabelidx(self.filePath)
+        if current_image_key in self.Doclabel:
+            for label in self.Doclabel[current_image_key]:
+                if label['transcription'].strip() == text.strip():
+                    return label['points']
+
+        # If still not found, log this and return None
+        print(f'No coordinates found for text: {text}')
+        return None
+
+    def getImglabelidx(self, filePath):
+        if platform.system() == 'Windows':
+            spliter = '\\'
+        else:
+            spliter = '/'
+        filepathsplit = filePath.split(spliter)[-2:]
+        return filepathsplit[0] + '/' + filepathsplit[1]
+
+    def loadShapesFromOriginalData(self):
+        # This method should load the original shapes data
+        # You'll need to implement this based on how your data is stored
+        # For example:
+        if hasattr(self, 'original_boxes_and_transcripts'):
+            for box, transcript in self.original_boxes_and_transcripts:
+                shape = Shape(label=transcript)
+                for point in box:
+                    shape.addPoint(QPointF(point[0], point[1]))
+                shape.close()
+                self.canvas.shapes.append(shape)
+        else:
+            print("No original data available to load shapes from")
+
+    def create_single_image_inference(self, inference_model):
+        def infer_single_image(image_path, boxes_and_transcripts):
+            # Create a temporary dataset and dataloader for a single image
+            single_dataset = PICKDataset(boxes_and_transcripts_folder=None,
+                                        images_folder=None,
+                                        resized_image_size=(480, 960),
+                                        ignore_error=False,
+                                        training=False)
+            single_dataset.files_list = [image_path]
+            single_dataset.boxes_and_transcripts_list = [boxes_and_transcripts]
+            
+            single_dataloader = DataLoader(single_dataset,
+                                        batch_size=1,
+                                        shuffle=False,
+                                        num_workers=0,
+                                        collate_fn=BatchCollateFn(training=False))
+
+            # Perform inference
+            results = []
+            for input_data_item in single_dataloader:
+                # Process the single image (similar to the batch processing in PICKInference)
+                # Collect and return results
+                pass
+            return results
+
+        return infer_single_image
 
     def cancel(self):
         self.dialog.close()
@@ -3615,29 +4288,12 @@ class MainWindow(QMainWindow):
             for key in self.fileStatedict:
                 f.write(key + '\t')
                 f.write(str(self.fileStatedict[key]) + '\n')
-
-    # def loadLabelFile(self, labelpath):
-    #     labeldict = {}
-    #     print('Labelpath: '+labelpath)
-    #     if not os.path.exists(labelpath):
-    #         f = open(labelpath, 'w', encoding='utf-8')
-
-    #     else:
-    #         with open(labelpath, 'r', encoding='utf-8') as f:
-    #             data = f.readlines()
-    #             for each in data:
-    #                 file, json_content = each.split('\t')
-    #                 if json_content:
-    #                     json_content = json_content.replace('false', 'False')
-    #                     json_content = json_content.replace('true', 'True')
-    #                     labeldict[file] = eval(json_content)
-    #                 else:
-    #                     labeldict[file] = []
-    #     return labeldict
     
     def loadLabelFile(self, labelpath):
         labeldict = {}
-        print('Labelpath: ' + labelpath)
+        if self.debug_mode:
+            logger.info(f'Labelpath: {labelpath}')
+            logger.info('-'*100)
         
         if not os.path.exists(labelpath):
             return labeldict  # Return an empty dictionary if the file doesn't exist
@@ -3657,7 +4313,10 @@ class MainWindow(QMainWindow):
     
     def loadKeyFile(self, labelpath):
         keydict = []
-        print('Labelpath: '+labelpath)
+        if self.debug_mode:
+            logger.info(f'Labelpath: {labelpath}')
+            logger.info('-'*100)
+
         if not os.path.exists(labelpath):
             f = open(labelpath, 'w', encoding='utf-8')
 
@@ -3858,6 +4517,7 @@ def get_main_app(argv=[]):
     arg_parser.add_argument("--lang", type=str, default='en', nargs="?")
     arg_parser.add_argument("--gpu", type=str2bool, default=True, nargs="?")
     arg_parser.add_argument("--kie", type=str2bool, default=False, nargs="?")
+    arg_parser.add_argument("--debug", type=str2bool, default=False, nargs="?")
     arg_parser.add_argument("--predefined_classes_file",
                             default=os.path.join(os.path.dirname(__file__), 
                             "data", "predefined_classes.txt"),
@@ -3867,6 +4527,7 @@ def get_main_app(argv=[]):
     win = MainWindow(lang=args.lang,
                      gpu=args.gpu,
                      kie_mode=args.kie,
+                     debug_mode=args.debug,
                      default_predefined_class_file=args.predefined_classes_file)
     win.show()
     return app, win
@@ -3877,12 +4538,13 @@ def main():
     return app.exec_()
 
 if __name__ == '__main__':
-
-    # resource_file = '/home/xlab/CSU_PhD_Research/Research/Software/CatalogBank/DocumentLabel/libs/resources.py'
-    resource_file = '/mnt/data_drive/CSU_PhD/research/software/DocumentLabeler/libs/resources.py'
+    # Use a relative path instead of an absolute path
+    resource_file = 'libs/resources.py'
+    
+    # Check if the file exists using the relative path
     if not os.path.exists(resource_file):
         output = os.system('pyrcc5 -o libs/resources.py resources.qrc')
-#        assert output == 0, "operate the cmd have some problems ,please check  whether there is a in the lib " \
-#                            "directory resources.py "
+        # Uncomment the assert statement if you want to enforce the command's success
+        # assert output == 0, "Operation failed. Please check if 'resources.py' exists in the 'libs' directory."
 
     sys.exit(main())

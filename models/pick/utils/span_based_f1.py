@@ -30,6 +30,7 @@ with modifications:
 TAGS_TO_SPANS_FUNCTION_TYPE = Callable[
     [List[str], Optional[List[str]]], List[TypedStringSpan]]  # pylint: disable=invalid-name
 
+
 class SpanBasedF1Measure(Metric):
     """
     The Conll SRL metrics are based on exact span matching. This metric

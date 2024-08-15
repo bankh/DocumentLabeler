@@ -12,6 +12,8 @@ import torch.nn.functional as F
 
 from data_utils import documents
 
+import logging
+logger = logging.getLogger(__name__)
 
 class GraphLearningLayer(nn.Module):
     def __init__(self, in_dim: int, learning_dim: int, gamma: float, eta: float):
@@ -27,6 +29,7 @@ class GraphLearningLayer(nn.Module):
 
     def forward(self, x: Tensor, adj: Tensor, box_num: Tensor = None):
         '''
+
         :param x: nodes set, (B*N, D)
         :param adj: init adj, (B, N, N, default is 1)
         :param box_num: (B, 1)
@@ -34,19 +37,18 @@ class GraphLearningLayer(nn.Module):
                 out, soft adj matrix
                 gl loss
         '''
-        torch.cuda.empty_cache()
         B, N, D = x.shape
 
         # (B, N, D)
         x_hat = self.projection(x)
         _, _, learning_dim = x_hat.shape
-        del x
+
         # (B, N, N, learning_dim)
         x_i = x_hat.unsqueeze(2).expand(B, N, N, learning_dim)
         x_j = x_hat.unsqueeze(1).expand(B, N, N, learning_dim)
         # (B, N, N, learning_dim)
         distance = torch.abs(x_i - x_j)
-        del x_i, x_j
+
         # add -1 flag to distance, if node is not exist. to separate normal node distances from not exist node distance.
         if box_num is not None:
             # mask = self.compute_static_mask(box_num)
@@ -207,21 +209,19 @@ class GCNLayer(nn.Module):
         # (B, N, N, in_dim)
         x_i = x.unsqueeze(2).expand(B, N, N, in_dim)
         x_j = x.unsqueeze(1).expand(B, N, N, in_dim)
-        del B, N, x
+
         # (B, N, N, in_dim)
         x_i = torch.einsum('bijd, dk->bijk', x_i, self.w_vi)
         x_j = torch.einsum('bijd, dk->bijk', x_j, self.w_vj)
 
         # update hidden features between nodes, (B, N, N, in_dim）
         H = F.relu(x_i + x_j + alpha + self.bias_h)
-        del x_i, x_j
-        torch.cuda.empty_cache()
+
         # update node embedding x, （B, N, out_dim）
         AH = torch.einsum('bij, bijd-> bid', adj, H)
         new_x = torch.einsum('bid,dk->bik', AH, self.w_node)
         new_x = F.relu(new_x)
-        del AH
-        torch.cuda.empty_cache()
+
         # update relation embedding, (B, N, N, out_dim)
         new_alpha = torch.einsum('bijd,dk->bijk', H, self.w_alpha)
         new_alpha = F.relu(new_alpha)

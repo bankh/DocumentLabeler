@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 # @Author: Wenwen Yu
 # @Created Time: 7/8/2020 9:26 PM
+
+
 from collections import Counter
 from torchtext.vocab import Vocab
 from pathlib import Path
 
 from . import entities_list
 
+
 class ClassVocab(Vocab):
+
     def __init__(self, classes, specials=['<pad>', '<unk>'], **kwargs):
         '''
         convert key to index(stoi), and get key string by index(itos)
@@ -32,6 +36,7 @@ class ClassVocab(Vocab):
         self.special_count = len(specials)
         super().__init__(c, specials=specials, **kwargs)
 
+
 def entities2iob_labels(entities: list):
     '''
     get all iob string label by entities
@@ -45,9 +50,7 @@ def entities2iob_labels(entities: list):
     tags.append('O')
     return tags
 
-keys_vocab_cls = ClassVocab(Path(__file__).parent.joinpath('keys.txt'), 
-                            specials_first=False)
-iob_labels_vocab_cls = ClassVocab(entities2iob_labels(entities_list.Entities_list), 
-                                  specials_first=False)
-entities_vocab_cls = ClassVocab(entities_list.Entities_list, 
-                                specials_first=False)
+
+keys_vocab_cls = ClassVocab(Path(__file__).parent.joinpath('keys.txt'), specials_first=False)
+iob_labels_vocab_cls = ClassVocab(entities2iob_labels(entities_list.Entities_list), specials_first=False)
+entities_vocab_cls = ClassVocab(entities_list.Entities_list, specials_first=False)

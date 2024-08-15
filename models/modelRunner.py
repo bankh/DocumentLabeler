@@ -1,87 +1,102 @@
+# -#- coding: utf-8 -*-
+# @Author: Sinan Bank
+# @Created Time: 8/9/2024 3:43 PM
 import logging
 import sys
 import os
 from pathlib import Path
-import argparse
 import yaml
+import torch
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, __dir__)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, '..')))
 
-# Add your models here to use their libraries directly without 
-# refactoring the imports in the code. Adding the libraries to 
-# the beginning of the PATH.
-# This line adds the 'pick' directory to the Python path
 from pick.tools.inference.pickInference import PICKInference
 from tools.infer.utility import check_gpu
 
-# Create a logger object
 logger = logging.getLogger(__name__)
-# Set the logging level to INFO (or desired level)
-logger.setLevel(logging.INFO)
-# Create a handler and set its level (if needed)
-handler = logging.StreamHandler()
-handler.setLevel(logging.INFO)
-# Create a formatter and add it to the handler
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-# Add the handler to the logger
-logger.addHandler(handler)
 
 class Inference:
-    def __init__(self, model_selection, **kwargs):
-        
-        # Extract the required parameters from kwargs or config.yml
+    def __init__(self, model_selection, debug_mode=False, **kwargs):
         self.model_selection = model_selection
+        self.debug_mode = debug_mode  # Store debug_mode
         self.params = kwargs
         
-        #Print the keys of self.params
         logger.info(f"self.params.keys(): {self.params.keys()}")
 
-        # Load configuration from YAML file
-        with open(self.params['config_file'], 'r') as config_data:
-            config_data = yaml.safe_load(config_data)
+        config_file = self.params.get('config_file')
+        if config_file and os.path.exists(config_file):
+            with open(config_file, 'r') as config_data:
+                config_data = yaml.safe_load(config_data)
+            self.checkpoint = config_data['checkpoint']
+            self.bt = config_data['bt']
+            self.impt = config_data['impt']
+            self.bs = config_data.get('bs', 16)
+            self.output = config_data.get('output', 'output')
+            self.local_rank = config_data.get('local_rank', 0)
+            self.num_workers = config_data.get('num_workers', 2)
+            self.use_cpu = config_data.get('use_cpu', False)
+        else:
+            self.checkpoint = self.params.get('checkpoint_path')
+            self.bt = self.params.get('bt_path')
+            self.impt = self.params.get('impt_path')
+            self.bs = self.params.get('batch_size', 16)
+            self.output = self.params.get('output_path', 'output')
+            self.local_rank = self.params.get('local_rank', 0)
+            self.num_workers = self.params.get('num_workers', 2)
+            self.use_cpu = self.params.get('use_cpu', False)
         
-        # Set the attributes based on the loaded configuration
-        self.checkpoint = config_data['checkpoint']
-        self.bt = config_data['bt']
-        self.impt = config_data['impt']
-        self.bs = config_data.get('bs', 16)
-        self.output = config_data.get('output', 'output')
-        self.local_rank = config_data.get('local_rank', 0)
-        self.num_workers = config_data.get('num_workers', 2)
+        self.multi_gpu = self.params.get('multi_gpu', False)
 
-        # Print the values of the keys
-        # print(f"self.checkpoint: {self.checkpoint}")
-        # print(f"self.bt: {self.bt}")
-        # print(f"self.impt: {self.impt}")
-        # print(f"self.bs: {self.bs}")
-        # print(f"self.output: {self.output}")
-        # print(f"self.local_rank: {self.local_rank}")
+        self.device = torch.device("cpu" if self.use_cpu else "cuda" if torch.cuda.is_available() else "cpu")
+
+        logger.info(f"self.checkpoint: {self.checkpoint}")
+        logger.info(f"self.bt: {self.bt}")
+        logger.info(f"self.impt: {self.impt}")
+        logger.info(f"self.bs: {self.bs}")
+        logger.info(f"self.output: {self.output}")
+        logger.info(f"self.local_rank: {self.local_rank}")
+        logger.info(f"self.num_workers: {self.num_workers}")
+        logger.info(f"self.multi_gpu: {self.multi_gpu}")
+        logger.info(f"self.use_cpu: {self.use_cpu}")
+        logger.info(f"Using device: {self.device}")
+        logger.info('-'*100)
 
     def perform_inference(self):
-        # Logic for performing inference using the selected model
         if self.model_selection == 'pytesseract_en':
             # Perform OCR inference in English
             pass
 
         elif self.model_selection == 'pick':
-            # Perform PICK-Token Label inference
-            print(f"self.checkpoint: {self.checkpoint}")
-            print(f"self.bt: {self.bt}")
-            print(f"self.impt: {self.impt}")
-            print(f"self.bs: {self.bs}")
-            print(f"self.output: {self.output}")
-            print(f"self.num_workers: {self.num_workers}")
+            logger.info(f"self.checkpoint: {self.checkpoint}")
+            logger.info(f"self.bt: {self.bt}")
+            logger.info(f"self.impt: {self.impt}")
+            logger.info(f"self.bs: {self.bs}")
+            logger.info(f"self.output: {self.output}")
+            logger.info(f"self.num_workers: {self.num_workers}")
+            logger.info(f"self.multi_gpu: {self.multi_gpu}")
+            logger.info(f"self.use_cpu: {self.use_cpu}")
 
             pick_inference = PICKInference(self.checkpoint, 
-                                      self.bt, 
-                                      self.impt, 
-                                      self.bs, 
-                                      self.output,
-                                      self.num_workers)
-            pick_inference.spawn_processes()
+                                           self.bt, 
+                                           self.impt, 
+                                           self.bs, 
+                                           self.output,
+                                           self.num_workers,
+                                           self.multi_gpu,
+                                           self.use_cpu,
+                                           debug_mode=self.debug_mode)  # Pass debug_mode here
+
+            if self.use_cpu:
+                logger.info("Using CPU for inference")
+                pick_inference.cpu_call()
+            elif self.multi_gpu:
+                logger.info("Using multi-GPU for inference")
+                pick_inference.spawn_processes()
+            else:
+                logger.info("Using single GPU for inference")
+                pick_inference.perform_single_gpu_inference()
 
         elif self.model_selection == 'deepke':
             # Perform DeepKE inference
@@ -91,27 +106,31 @@ class Inference:
             # Perform LiLT-Token Label Inference
             pass
 
-        # The following lines are left for other types of models.
-        # elif {ADD_YOUR_MODEL_CONDITION} == 'YOUR_MODEL':
-        #     pass
-
         else:
-            # Handle unsupported model selection
+            logger.error(f"Unsupported model selection: {self.model_selection}")
+
+    def infer_single_image(self, image_path, boxes_and_transcripts):
+        if self.model_selection == 'pick':
+            pick_inference = PICKInference(checkpoint=self.checkpoint,
+                                           bt=self.bt,
+                                           impt=self.impt,
+                                           bs=1,
+                                           output=self.output,
+                                           num_workers=self.num_workers,
+                                           multi_gpu=self.multi_gpu,
+                                           use_cpu=self.use_cpu,
+                                           debug_mode=self.debug_mode)  # Pass debug_mode here
+            return pick_inference.infer_single_image(image_path, boxes_and_transcripts)
+        elif self.model_selection == 'pytesseract_en':
+            # Implement single image inference for pytesseract
             pass
+        elif self.model_selection == 'deepke':
+            # Implement single image inference for deepke
+            pass
+        elif self.model_selection == 'lilt':
+            # Implement single image inference for lilt
+            pass
+        else:
+            logger.error(f"Unsupported model selection for single image inference: {self.model_selection}")
+            return None
 
-def main():
-    parser = argparse.ArgumentParser(description='Inference script')
-    parser.add_argument('model_selection', type=str, help='Model selection')
-    parser.add_argument('--checkpoint_path', type=str, help='Checkpoint path')
-    parser.add_argument('--bt_path', type=str, help='Boxes and transcripts path')
-    parser.add_argument('--impt_path', type=str, help='Images path')
-    parser.add_argument('--batch_size', type=int, help='Batch size')
-    parser.add_argument('--output_path', type=str, help='Output path')
-    parser.add_argument('--config_file', type=str, help='Config file')
-    args = parser.parse_args()
-
-    inference = Inference(args.model_selection, **vars(args))
-    inference.perform_inference()
-
-if __name__ == '__main__':
-    main()

@@ -1,0 +1,15 @@
+TableTitle
+Table
+Footer
+SubsubTitle
+Categories
+Image
+PageNumber
+SubTitle
+Title
+None
+SubsubCategories
+Caption
+SubCategories
+List
+Description
