@@ -1,0 +1,8 @@
+checkpoint: /path/to/checkpoint.pth
+bt: /path/to/boxes_and_transcripts
+impt: /path/to/pick_no_label/images
+bs: 4
+output: /path/to/DocumentLabeler_/output
+local_rank: 0
+num_worker: 4
+use_cpu: True
