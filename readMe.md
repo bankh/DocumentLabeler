@@ -309,7 +309,6 @@ __To Merge__, please make sure the created box or polygon overlays the target ob
       <img src="./repo_assets/Inference_Setup.jpg" alt="Inference Setup" style="width: 100%;"/>
     </td>
     <td style="width: 70%; vertical-align: top; horizontal-align: middle;">
-      <br>
       To infer on the imported or opened dataset content, we need to use <code>Inference > Choose model/task</code> or <code>Ctrl+m</code>. 
       Then, we can either use a YAML file from 
       <a href="./models/model_configuration/pick_config.yaml">./models/model_configuration/pick_config.yaml</a> 
@@ -339,7 +338,7 @@ $ ./dist_train.sh
 ```
 Or entering the arguments on command line,  
 ```
-$ ./dist_train_with_params.sh 2 0 4 192.168.1.1 6000 train.py -c config.json -d 0,1,2,3 --local_world_size 4
+$ ./dist_train_with_params.sh 2 0 4 {YOUR_IP} {YOUR_PORT}
 ```
 The arguments in the `dist_train_with_params` are,  
 ```
@@ -351,7 +350,7 @@ $5 - Port for communication (--master_port)
 ${@:6} - Additional arguments passed to the training script, such as script name and other parameters.  
 ```
 
-The training configuration is depicted in `./models/pick/config.json` and running the training script will be subject to the type of the hardware you have (e.g., number of GPU, vRAM, etc.). You can check section `3-Some Experiments with DocumentLabeler and CatalogBank` from the paper.
+The training configuration is depicted in `./models/pick/config.json`, and running the training script will depend on the type of hardware you have (e.g., the number of GPUs, vRAM, etc.). You can check the paper's section `3-Some Experiments with DocumentLabeler and CatalogBank`.
 
 #### Keyboard Shortcuts of DocumentLabeler
 | Shortcut Keys               | Description                                        |
