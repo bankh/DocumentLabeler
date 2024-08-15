@@ -332,11 +332,11 @@ use_cpu: Initial state of CPU-based inference
 ```
 
 #### Training and Testing of the Model for Experiments (e.g.,PICK)
-- To train the model with multiple GPUs, one can use the following lines:
+- 🐧🐧To train the model with multiple GPUs, one can use the following lines:
 ```
 $ ./dist_train.sh
 ```
-Or entering the arguments on command line,  
+- 🐧🐧Or entering the arguments on command line,  
 ```
 $ ./dist_train_with_params.sh 2 0 4 {YOUR_IP} {YOUR_PORT}
 ```
@@ -350,7 +350,7 @@ $5 - Port for communication (--master_port)
 ${@:6} - Additional arguments passed to the training script, such as script name and other parameters.  
 ```
 
-The training configuration is depicted in `./models/pick/config.json`, and running the training script will depend on the type of hardware you have (e.g., the number of GPUs, vRAM, etc.). You can check the paper's section `3-Some Experiments with DocumentLabeler and CatalogBank`.
+- 🐧🐧The training configuration is depicted in `./models/pick/config.json`, and running the training script will depend on the type of hardware you have (e.g., the number of GPUs, vRAM, etc.). You can check the paper's section `3-Some Experiments with DocumentLabeler and CatalogBank`.
 
 #### Keyboard Shortcuts of DocumentLabeler
 | Shortcut Keys               | Description                                        |
