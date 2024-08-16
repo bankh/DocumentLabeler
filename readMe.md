@@ -27,7 +27,7 @@ __Accompanying Semi-Automatic Annotation Tool to the Paper__
   <tr>
     <td align="center">
       <img src="./repo_assets/pick_import.gif" alt="PICK Import" width="300px"/><br>
-      PICK Import
+      PICK<sup>[1]</sup> Import
     </td>
     <td align="center">
       <img src="./repo_assets/delete_multi_box.gif" alt="Multi Delete" width="300px"/><br>
@@ -49,7 +49,7 @@ __Accompanying Semi-Automatic Annotation Tool to the Paper__
   <tr>
   <td align="center">
       <img src="./repo_assets/pick_inference.gif" alt="PICK Inference" width="300px"/><br>
-      PICK Inference and Correction
+      PICK<sup>[1]</sup> Inference and Correction
     </td>
   </tr>
 </table>
@@ -438,4 +438,4 @@ Please contact with sinan.bank@colostate.edu for any questions and problems that
   </tr>
 </table>
 
-[^Fn1]: Yu, Wenwen, et al. "PICK: processing key information extraction from documents using improved graph learning-convolutional networks." 2020 25th International Conference on Pattern Recognition (ICPR). IEEE, 2021.
+[^Fn1]: Yu, Wenwen, et al. "PICK: processing key information extraction from documents using improved graph learning-convolutional networks." 2020 25th International Conference on Pattern Recognition (ICPR). IEEE, 2021. <a name="fn1"></a>
