@@ -289,7 +289,7 @@ Existing `./data_samples/{X}/DocumentLabeler/` should have the following structu
 
 - 🐧To import data, follow `File > Import Dataset` (or `Ctrl+I`) and then pick the target dataset format (e.g., pick, [DocBank](https://github.com/doc-analysis/DocBank), [FUNSD](https://guillaumejaume.github.io/FUNSD/description/), [XFUND](https://github.com/doc-analysis/XFUND), etc.)
 
-|__Imported View of DocBank:__  |__Imported View of PICK:__  |
+|__Imported View of DocBank[^Fn2]:__  |__Imported View of PICK:__  |
 |-----------------|------------------|
 |<img src="./repo_assets/docBank_imported.jpg" alt="DocBank Imported" width="400" height="213" />|<img src="./repo_assets/CatalogBank_pick_imported.jpg" alt="PICK Imported" width="400" height="213" />
 
@@ -439,3 +439,4 @@ Please contact with sinan.bank@colostate.edu for any questions and problems that
 </table>
 
 [^Fn1]: Yu, Wenwen, et al. "PICK: processing key information extraction from documents using improved graph learning-convolutional networks." 2020 25th International Conference on Pattern Recognition (ICPR). IEEE, 2021. <a name="fn1"></a>
+[^Fn2]: Minghao Li, Yiheng Xu, Lei Cui, Shaohan Huang, Furu Wei, Zhoujun Li, and Ming Zhou. 2020. DocBank: A benchmark dataset for document layout analysis. arXiv preprint arXiv:2006.01038
