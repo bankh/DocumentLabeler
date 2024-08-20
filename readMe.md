@@ -314,7 +314,7 @@ __To Merge__, please make sure the created box or polygon overlays the target ob
     <td style="width: 70%; vertical-align: top; horizontal-align: middle;">
       To infer on the imported or opened dataset content, we need to use <code>Inference > Choose model/task</code> or <code>Ctrl+m</code>. 
       Then, we can either use a YAML file from 
-      <a href="./models/model_configuration/pick_config.yaml">./models/model_configuration/pick_config.yaml</a> 
+      <a href="./models/models_configuration/pick_config.yaml">./models/models_configuration/pick_config.yaml</a> 
       or enter the individual path settings.<br>  
       Depending on the hardware configuration, the user can select <code>CPU</code>, <code>GPU</code>, or <code>Multi-GPU</code> 
       -based inference for a single page, as shown in the image.
