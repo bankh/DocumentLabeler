@@ -177,7 +177,7 @@ Once the installation is completed, type `source activate ~/.bashrc`, and you sh
   $ pip install requirements_dl.txt
   ```
 __Notes:__  
-__[a]__ To use GPU inference with PICK[^Fn1] (or your own model), make sure to install the [appropriate versions of PyTorch](https://pytorch.org/get-started/previous-versions/) with the target GPU/ CUDA while taking into account its [compute capabilities (e.g., SM_XX)](https://developer.nvidia.com/cuda-gpus#compute). To check the compute capability of the system we can use `nvidia-smi --query-gpu=compute_cap --format=csv,noheader` in the terminal window. For example, we can check our GPU via `nvidia-smi -q` and will see for HP Victus 16 as:  
+__[a]__ To use GPU inference with PICK[^Fn1] (or your own model), make sure to install the [appropriate versions of PyTorch](https://pytorch.org/get-started/previous-versions/) with [the target GPU/ CUDA](https://docs.nvidia.com/deploy/cuda-compatibility/index.html) while taking into account its [compute capabilities (e.g., SM_XX)](https://developer.nvidia.com/cuda-gpus#compute). To check the compute capability of the system we can use `nvidia-smi --query-gpu=compute_cap --format=csv,noheader` in the terminal window. For example, we can check our GPU via `nvidia-smi -q` and will see for HP Victus 16 as:  
 ```
 ==============NVSMI LOG==============
 
