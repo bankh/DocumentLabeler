@@ -16,11 +16,12 @@
     <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-yellow.svg" target="_blank" />
   </a>
 
-[Folder Structure](#folder-structure-of-the-repository)📂 | [Installation and Setup](#installation-and-setup-of-the-documentlabeler)⚙️ | [Usage of DocumentLabeler](#usage-of-documentlabeler)🏃| [Tools](#tools)🛠️ | [Cite](#cite)📜 | [Contact](#contact)📫 | [References](#references-and-other-software-tools)📖 
+[Folder Structure](#folder-structure-of-the-repository)📂 | [Installation and Setup](#installation-and-setup-of-the-documentlabeler)⚙️ | [Usage of DocumentLabeler](#usage-of-documentlabeler)🏃| [Tools](#tools)🛠️ | [Cite](#cite)📜 | [Contact](#contact)📫 | [References](#references-and-other-software-tools)📖 | <br>
+<strong>[CatalogBank](https://github.com/bankh/CatalogBank)</strong> 📚
 </div>
 
 __Accompanying Semi-Automatic Annotation Tool to the Paper__  
-[CatalogBank: A Structured and Interoperable Catalog Dataset with a Semi-Automatic Annotation Tool (DocumentLabeler) for Engineering System Design](https://doi.org/10.1145/3685650.3685665) as submitted in [ACM DocEng'24](https://www.documentengineering.org/doceng2024/program).  
+[CatalogBank: A Structured and Interoperable Catalog Dataset with a Semi-Automatic Annotation Tool (DocumentLabeler) for Engineering System Design](https://doi.org/10.1145/3685650.3685665) (or arXiv prePrint: [2408.08238](https://arxiv.org/abs/2408.08238)) as submitted in [ACM DocEng'24](https://www.documentengineering.org/doceng2024/program).  
 **Abstract:** In the realm of document engineering and Natural Language Processing (NLP), the integration of digitally born catalogs into product design processes presents a novel avenue for enhancing information extraction and interoperability. This paper introduces CatalogBank, a dataset developed to bridge the gap between textual descriptions and other data modalities related to engineering design catalogs. We utilized existing information extraction methodologies to extract product information from PDF-based catalogs to use in downstream tasks to generate a baseline metric. Our approach not only supports the potential automation of design workflows but also overcomes the limitations of manual data entry and non-standard metadata structures that have historically impeded the seamless integration of textual and other data modalities. Through the use of DocumentLabeler, an open-source annotation tool adapted for our dataset, we demonstrated the potential of CatalogBank in supporting diverse document-based tasks such as layout analysis and knowledge extraction. Our findings suggest that CatalogBank can contribute to document engineering and NLP by providing a robust dataset for training models capable of understanding and processing complex document formats with relatively less effort using the semi-automated annotation tool DocumentLabeler.
 <div align="center">
 <table>
@@ -54,6 +55,8 @@ __Accompanying Semi-Automatic Annotation Tool to the Paper__
   </tr>
 </table>
 </div>
+
+❗ __Note:__ ❗The content relevant to CatalogBank is in a separate repository. Please click the [link](https://github.com/bankh/CatalogBank) or from the top menu to access the repository.
 
 ### __Folder Structure of the Repository__  <a name="folder-structure-of-the-repository"></a>
 ```
