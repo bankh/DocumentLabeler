@@ -16,7 +16,7 @@
     <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-yellow.svg" target="_blank" />
   </a>
 
-[Folder Structure](#folder-structure-of-the-repository)📂 | [Installation and Setup](#installation-and-setup-of-the-documentlabeler)⚙️ | [Usage of DocumentLabeler](#usage-of-documentlabeler)🏃| [Tools](#tools)🛠️ | [Cite](#cite)📜 | [Contact](#contact)📫 | [References](#references-and-other-software-tools)📖 | <strong>[CatalogBank](https://github.com/bankh/CatalogBank)</strong> 📚
+[Folder Structure](#folder-structure-of-the-repository)📂 | [Installation and Setup](#installation-and-setup-of-the-documentlabeler)⚙️ | [Usage of DocumentLabeler](#usage-of-documentlabeler)🏃| [Tools](#tools)🛠️ | [Presentation Video](#presentation-video) 📹 | [Cite](#cite)📜 | [Contact](#contact)📫 | [References](#references-and-other-software-tools)📖 | <strong>[CatalogBank](https://github.com/bankh/CatalogBank)</strong> 📚
 </div>
 
 __Accompanying Semi-Automatic Annotation Tool to the Paper__  
@@ -402,6 +402,13 @@ The details are provided below, also can be seen in CatalogBank readMe markdown 
 1- To pre-process pdfs to generate the data, use `./tools/DocumentLabeler_Notebooks/1_CatalogBank_Preprocess_GenerateData.ipynb`.  
 2- To convert pre-processed data to DocumentLabeler format (available in UI `File > Import`), use `./tools/DocumentLabeler_Notebooks/2_CatalogBank_Convert_Preprocessed_DocumentLabeler (Import).ipynb`.  
 3- Convert DocumentLabeler format to a target (available in UI File > Export), use `./tools/DocumentLabeler_Notebooks/3_CatalogBank_Convert_DocumentLabeler_Target (Export).ipynb`.
+
+### __Presentation Video__ <a name="presentation-video"></a>
+<div align="center">
+    <a href="https://www.youtube.com/watch?v=d5_FFa2ElMo" target="_blank">
+        <img src="https://github.com/user-attachments/assets/83ee1d25-a9c7-4a31-9b5b-ed2ddef0a18c" alt="YouTube Video" width="500">
+    </a>
+</div>
 
 ### __Cite__ <a name="cite"></a>
 Please cite the respective paper if you use this tool in your work:
